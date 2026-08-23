@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>国债期货技术面</title>
+  <script src="./echarts.min.js"></script>
+  <style>
+    :root {
+      --ink: #10140f;
+      --pine: #1a241c;
+      --paper: #f1e6cf;
+      --rule: #cbb992;
+      --vermilion: #c43c2c;
+      --moss: #2f6b4f;
+      --amber: #d7a04b;
+      --mute: #7a715f;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: #0d110e; color: var(--paper); }
+    body {
+      font-family: "Songti SC", "Noto Serif SC", "Source Han Serif SC", serif;
+      background-image:
+        radial-gradient(1000px 420px at 8% -8%, #243028 0%, transparent 55%),
+        linear-gradient(180deg, #141a16, #0d110e);
+    }
+    .frame { max-width: 1080px; margin: 0 auto; padding: 24px 18px 56px; }
+    header {
+      display: flex; justify-content: space-between; gap: 16px; align-items: end;
+      border-bottom: 1px solid rgba(241,230,207,.18); padding-bottom: 16px;
+    }
+    .kicker { font-family: "IBM Plex Mono", monospace; letter-spacing: .2em; font-size: 11px; color: var(--amber); }
+    h1 { font-family: "Fraunces", "Noto Serif SC", serif; font-size: clamp(28px, 5vw, 46px); margin: 6px 0 0; letter-spacing: -.03em; }
+    .asof { font-family: "IBM Plex Mono", monospace; font-size: 13px; text-align: right; }
+    .asof b { display: block; font-family: "Fraunces", serif; font-size: 22px; color: #fff; }
+    .banner {
+      margin: 16px 0 20px; padding: 12px 14px;
+      background: rgba(215,160,75,.1); border: 1px solid rgba(215,160,75,.28);
+      color: #f0dfb8; font-size: 15px; line-height: 1.55;
+    }
+    .card {
+      background: var(--paper); color: var(--ink); padding: 16px 16px 12px;
+      box-shadow: 8px 12px 0 rgba(0,0,0,.28); margin-bottom: 22px;
+    }
+    .head { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+    .code { font-family: "IBM Plex Mono", monospace; color: var(--mute); font-size: 12px; }
+    .name { margin: 0; font-size: 22px; }
+    .px { font-family: "Fraunces", serif; font-size: 34px; letter-spacing: -.04em; }
+    .stamp { display: inline-block; border: 2px solid var(--vermilion); color: var(--vermilion); font-weight: 700; padding: 1px 8px; transform: rotate(-7deg); margin-right: 8px; }
+    .stamp.mid { border-color: #8a5a22; color: #8a5a22; }
+    .meta { font-size: 14px; line-height: 1.55; }
+    .levels { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; font-family: "IBM Plex Mono", monospace; font-size: 12px; margin: 8px 0 10px; }
+    .levels span { color: var(--mute); }
+    .tools { display: flex; gap: 6px; margin: 0 0 8px; }
+    .tools button { font-family: "IBM Plex Mono", monospace; font-size: 11px; border: 1px solid var(--rule); background: transparent; padding: 3px 8px; cursor: pointer; }
+    .tools button.on { background: var(--ink); color: var(--paper); }
+    .chart { height: 560px; width: 100%; }
+    .note { font-size: 12px; color: #6d6454; margin: 6px 0 0; }
+    .legend { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: 12px; color: var(--mute); margin-top: 8px; }
+    .legend b { display: inline-block; width: 12px; height: 8px; margin-right: 4px; vertical-align: middle; opacity: .7; }
+    .hist h2 { font-size: 18px; }
+    .rail { display: flex; gap: 10px; overflow-x: auto; }
+    .pill { min-width: 168px; background: var(--pine); border: 1px solid rgba(241,230,207,.16); padding: 10px 12px; font-family: "IBM Plex Mono", monospace; font-size: 12px; }
+    .pill .d { color: var(--amber); }
+    footer { margin-top: 24px; color: var(--mute); font-size: 12px; font-family: "IBM Plex Mono", monospace; line-height: 1.6; }
+    @media (max-width: 720px) { header, .head { display: block; } .asof { text-align: left; margin-top: 8px; } }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <header>
+      <div>
+        <div class="kicker">CGB Futures Desk</div>
+        <h1>国债期货技术面</h1>
+      </div>
+      <div class="asof"><b id="asof">—</b><div id="source"></div></div>
+    </header>
+    <div class="banner" id="banner"></div>
+    <article class="card" id="card-T"></article>
+    <article class="card" id="card-TL"></article>
+    <section class="hist">
+      <h2>连续变化</h2>
+      <div class="rail" id="rail"></div>
+    </section>
+    <footer id="foot"></footer>
+  </div>
+  <script src="./data.js"></script>
+  <script>
+    const D = window.DESK;
+    if (!D) {
+      document.body.insertAdjacentHTML("afterbegin",
+        '<p style="padding:40px;color:#f1e6cf">data.js 没有加载到，请打开 输出/web/index.html 同目录下的页面。</p>');
+      throw new Error("DESK missing");
+    }
+    const fmt = (n, d) => Number(n).toFixed(d);
+    const rng = (a, d) => `${fmt(a[0], d)}–${fmt(a[1], d)}`;
+    document.getElementById("asof").textContent = D.asof;
+    document.getElementById("source").textContent = `${D.source} · ${D.codes.T} / ${D.codes.TL}`;
+    document.getElementById("banner").textContent =
+      `近20日 T ${D.curve.t_pct > 0 ? "+" : ""}${D.curve.t_pct}% ，TL ${D.curve.tl_pct > 0 ? "+" : ""}${D.curve.tl_pct}% 。${D.curve.note}`;
+
+    function card(key, spec) {
+      const d = key === "TL" ? 2 : 3;
+      return `
+        <div class="head">
+          <div><div class="code">${spec.code}</div><h2 class="name">${spec.name}</h2></div>
+          <div class="px">${fmt(spec.close, d)}</div>
+        </div>
+        <div><span class="stamp">${spec.bias}</span><span class="stamp mid">把握${spec.confidence}</span></div>
+        <p class="meta">${spec.pattern}。${spec.pattern_note}</p>
+        <div class="levels">
+          <div><span>这波失效</span><br>${fmt(spec.invalid_near, d)}</div>
+          <div><span>大方向失效</span><br>${fmt(spec.invalid_trend, d)}</div>
+          <div><span>近端支撑</span><br>${rng(spec.support_near, d)}</div>
+          <div><span>远端支撑</span><br>${rng(spec.support_far, d)}</div>
+          <div><span>近端压力</span><br>${rng(spec.resist_near, d)}</div>
+          <div><span>远端压力</span><br>${rng(spec.resist_far, d)}</div>
+        </div>
+        <div class="tools" data-key="${key}">
+          <button data-n="60">3月</button>
+          <button class="on" data-n="120">6月</button>
+          <button data-n="250">1年</button>
+          <button data-n="9999">全部</button>
+        </div>
+        <div class="chart" id="ch-${key}"></div>
+        <p class="note">${spec.oi_note || ""}</p>
+        <div class="legend">
+          <span><b style="background:#2f6b4f"></b>近端支撑带</span>
+          <span><b style="background:#c43c2c"></b>近端压力带</span>
+          <span><b style="background:#8a5a22"></b>通道趋势线</span>
+          <span><b style="background:#3b6ea5"></b>MA20</span>
+        </div>`;
+    }
+    document.getElementById("card-T").innerHTML = card("T", D.T);
+    document.getElementById("card-TL").innerHTML = card("TL", D.TL);
+
+    const charts = {};
+    function slice(bars, n) { return n >= bars.length ? bars : bars.slice(-n); }
+    function extendLine(p1, p2, dates) {
+      if (!p1 || !p2 || dates.length < 2) return [];
+      const x1 = new Date(p1[0]).getTime(), x2 = new Date(p2[0]).getTime();
+      if (x2 === x1) return [];
+      const slope = (p2[1] - p1[1]) / (x2 - x1);
+      return dates.map(d => {
+        const x = new Date(d).getTime();
+        return +(p1[1] + slope * (x - x1)).toFixed(4);
+      });
+    }
+
+    function draw(key, n) {
+      const spec = D[key];
+      const dec = key === "TL" ? 2 : 3;
+      const bars = slice(spec.bars, n);
+      const dates = bars.map(b => b.time);
+      const candle = bars.map(b => [b.open, b.close, b.low, b.high]);
+      const vol = bars.map(b => ({
+        value: b.volume,
+        itemStyle: { color: b.close >= b.open ? "rgba(196,60,44,.45)" : "rgba(47,107,79,.45)" }
+      }));
+      const oiMap = Object.fromEntries((spec.oi || []).map(p => [p.time, p.value]));
+      const oi = dates.map(d => oiMap[d] ?? null);
+      const ma = (f) => bars.map(b => b[f]);
+      const area = (lo, hi, color, name) => ([
+        { yAxis: lo, itemStyle: { color }, name },
+        { yAxis: hi }
+      ]);
+      const markLine = [
+        {
+          name: "这波失效",
+          yAxis: spec.invalid_near,
+          label: { formatter: "这波失效 {c}", position: "insideStartTop", color: "#8a1f16" },
+          lineStyle: { color: "#8a1f16", width: 1.5, type: "solid" }
+        },
+        {
+          name: "大方向失效",
+          yAxis: spec.invalid_trend,
+          label: { formatter: "大方向失效 {c}", position: "insideStartBottom", color: "#5c4a2e" },
+          lineStyle: { color: "#5c4a2e", width: 1, type: "dashed" }
+        }
+      ];
+      const trendSeries = [];
+      if (spec.trend_lower) {
+        trendSeries.push({
+          name: "通道下沿", type: "line", xAxisIndex: 0, yAxisIndex: 0,
+          data: extendLine(spec.trend_lower[0], spec.trend_lower[1], dates),
+          showSymbol: false, lineStyle: { color: "#8a5a22", width: 1.6 },
+          tooltip: { show: false }
+        });
+      }
+      if (spec.trend_upper) {
+        trendSeries.push({
+          name: "通道上沿", type: "line", xAxisIndex: 0, yAxisIndex: 0,
+          data: extendLine(spec.trend_upper[0], spec.trend_upper[1], dates),
+          showSymbol: false, lineStyle: { color: "#8a5a22", width: 1.6, type: "dashed" },
+          tooltip: { show: false }
+        });
+      }
+
+      const el = document.getElementById("ch-" + key);
+      if (charts[key]) charts[key].dispose();
+      const chart = echarts.init(el, null, { renderer: "canvas" });
+      chart.setOption({
+        animation: false,
+        backgroundColor: "#f1e6cf",
+        tooltip: {
+          trigger: "axis",
+          axisPointer: { type: "cross" },
+          backgroundColor: "#201c16",
+          borderWidth: 0,
+          textStyle: { color: "#f1e6cf", fontSize: 12 },
+          formatter(params) {
+            const p = params.filter(x => x.seriesName === "K线")[0];
+            if (!p) return "";
+            const i = p.dataIndex;
+            const b = bars[i];
+            const oiV = oi[i];
+            return `${b.time}<br>开 ${b.open}  高 ${b.high}<br>低 ${b.low}  收 ${b.close}<br>成交量 ${Math.round(b.volume)} 手`
+              + (oiV != null ? `<br>持仓 ${Math.round(oiV)} 手` : "");
+          }
+        },
+        axisPointer: { link: [{ xAxisIndex: [0, 1, 2] }] },
+        grid: [
+          { left: 56, right: 18, top: 28, height: 300 },
+          { left: 56, right: 18, top: 344, height: 72 },
+          { left: 56, right: 18, top: 432, height: 88 }
+        ],
+        xAxis: [
+          { type: "category", data: dates, gridIndex: 0, axisLabel: { show: false }, axisTick: { show: false }, axisLine: { lineStyle: { color: "#cbb992" } } },
+          { type: "category", data: dates, gridIndex: 1, axisLabel: { show: false }, axisTick: { show: false }, axisLine: { lineStyle: { color: "#cbb992" } } },
+          { type: "category", data: dates, gridIndex: 2, axisLabel: { color: "#6d6454", fontSize: 10, hideOverlap: true }, axisLine: { lineStyle: { color: "#cbb992" } } }
+        ],
+        yAxis: [
+          { scale: true, gridIndex: 0, splitNumber: 5, axisLabel: { color: "#3d382c", fontFamily: "IBM Plex Mono", fontSize: 11, formatter: v => v.toFixed(dec) }, splitLine: { lineStyle: { color: "rgba(16,20,15,.08)" } } },
+          { scale: true, gridIndex: 1, axisLabel: { color: "#6d6454", fontSize: 10, formatter: v => (v/1000).toFixed(0) + "千手" }, splitLine: { show: false }, name: "成交量", nameTextStyle: { color: "#6d6454", fontSize: 11, padding: [0,0,0,8] } },
+          { scale: true, gridIndex: 2, axisLabel: { color: "#6d6454", fontSize: 10, formatter: v => (v/10000).toFixed(1) + "万" }, splitLine: { show: false }, name: "持仓", nameTextStyle: { color: "#6d6454", fontSize: 11 } }
+        ],
+        series: [
+          {
+            name: "K线", type: "candlestick", data: candle, xAxisIndex: 0, yAxisIndex: 0,
+            itemStyle: { color: "#c43c2c", color0: "#2f6b4f", borderColor: "#c43c2c", borderColor0: "#2f6b4f" },
+            markArea: {
+              silent: true,
+              data: [
+                area(spec.support_near[0], spec.support_near[1], "rgba(47,107,79,.22)", "近撑"),
+                area(spec.resist_near[0], spec.resist_near[1], "rgba(196,60,44,.18)", "近压"),
+                area(spec.support_far[0], spec.support_far[1], "rgba(47,107,79,.10)", "远撑")
+              ]
+            },
+            markLine: { symbol: "none", data: markLine }
+          },
+          { name: "MA20", type: "line", data: ma("ma20"), xAxisIndex: 0, yAxisIndex: 0, showSymbol: false, lineStyle: { color: "#3b6ea5", width: 1.6 } },
+          { name: "MA60", type: "line", data: ma("ma60"), xAxisIndex: 0, yAxisIndex: 0, showSymbol: false, lineStyle: { color: "#6b4ea1", width: 1 } },
+          { name: "MA120", type: "line", data: ma("ma120"), xAxisIndex: 0, yAxisIndex: 0, showSymbol: false, lineStyle: { color: "#8a5a22", width: 1 } },
+          ...trendSeries,
+          { name: "成交量", type: "bar", data: vol, xAxisIndex: 1, yAxisIndex: 1, barWidth: "60%" },
+          {
+            name: "持仓", type: "line", data: oi, xAxisIndex: 2, yAxisIndex: 2,
+            showSymbol: false, connectNulls: false, lineStyle: { color: "#8a5a22", width: 2 },
+            areaStyle: { color: "rgba(138,90,34,.12)" },
+            markArea: {
+              silent: true,
+              itemStyle: { color: "rgba(196,60,44,.12)" },
+              data: [[{ xAxis: "2026-08-17", name: "换月" }, { xAxis: dates[dates.length - 1] }]]
+            }
+          }
+        ]
+      });
+      charts[key] = chart;
+      new ResizeObserver(() => chart.resize()).observe(el);
+    }
+
+    if (!window.echarts) {
+      document.getElementById("foot").textContent = "图表库 echarts.min.js 未加载，结论文字仍可用。";
+    } else {
+      try { draw("T", 120); draw("TL", 120); }
+      catch (err) { document.getElementById("foot").textContent = "画图失败：" + err.message; }
+    }
+    document.querySelectorAll(".tools").forEach(box => {
+      box.addEventListener("click", e => {
+        const btn = e.target.closest("button");
+        if (!btn) return;
+        box.querySelectorAll("button").forEach(b => b.classList.remove("on"));
+        btn.classList.add("on");
+        draw(box.dataset.key, Number(btn.dataset.n));
+      });
+    });
+    const rail = document.getElementById("rail");
+    (D.history || []).slice().reverse().forEach(h => {
+      const el = document.createElement("div");
+      el.className = "pill";
+      el.innerHTML = `<div class="d">${h.asof}</div>T ${h.T.bias}/${h.T.confidence} ${h.T.close}<br>TL ${h.TL.bias}/${h.TL.confidence} ${h.TL.close}`;
+      rail.appendChild(el);
+    });
+    document.getElementById("foot").textContent =
+      `${D.roll_note} 数据来源于万得 Wind 金融数据服务。`;
+  </script>
+</body>
+</html>
