@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>国债期货技术面</title>
+  <link rel="preload" href="./echarts.min.js" as="script">
+  <link rel="preload" href="./data.js" as="script">
+  <script src="./echarts.min.js" async></script>
   <style>
     :root {
       --ink: #10140f;
@@ -53,7 +56,13 @@
     .tools { display: flex; gap: 6px; margin: 0 0 8px; }
     .tools button { font-family: "IBM Plex Mono", monospace; font-size: 11px; border: 1px solid var(--rule); background: transparent; padding: 3px 8px; cursor: pointer; }
     .tools button.on { background: var(--ink); color: var(--paper); }
-    .chart { height: 560px; width: 100%; }
+    .chart { height: 560px; width: 100%; position: relative; }
+    .chart:empty::before {
+      content: "正在画图…";
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      color: #6d6454; font-size: 13px;
+    }
     .note { font-size: 12px; color: #6d6454; margin: 6px 0 0; }
     .legend { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: 12px; color: var(--mute); margin-top: 8px; }
     .legend b { display: inline-block; width: 12px; height: 8px; margin-right: 4px; vertical-align: middle; opacity: .7; }
@@ -116,8 +125,8 @@
         </div>
         <div class="tools" data-key="${key}">
           <button data-n="60">3月</button>
-          <button class="on" data-n="120">6月</button>
-          <button data-n="250">1年</button>
+          <button data-n="120">6月</button>
+          <button class="on" data-n="250">1年</button>
           <button data-n="9999">全部</button>
         </div>
         <div class="chart" id="ch-${key}"></div>
@@ -230,7 +239,7 @@
         ],
         yAxis: [
           { scale: true, gridIndex: 0, splitNumber: 5, axisLabel: { color: "#3d382c", fontFamily: "IBM Plex Mono", fontSize: 11, formatter: v => v.toFixed(dec) }, splitLine: { lineStyle: { color: "rgba(16,20,15,.08)" } } },
-          { scale: true, gridIndex: 1, axisLabel: { color: "#6d6454", fontSize: 10, formatter: v => (v/1000).toFixed(0) + "千手" }, splitLine: { show: false }, name: "成交量", nameTextStyle: { color: "#6d6454", fontSize: 11, padding: [0,0,0,8] } },
+          { min: 0, scale: false, gridIndex: 1, axisLabel: { color: "#6d6454", fontSize: 10, formatter: v => (v/1000).toFixed(0) + "千手" }, splitLine: { show: false }, name: "成交量", nameTextStyle: { color: "#6d6454", fontSize: 11, padding: [0,0,0,8] } },
           { scale: true, gridIndex: 2, axisLabel: { color: "#6d6454", fontSize: 10, formatter: v => (v/10000).toFixed(1) + "万" }, splitLine: { show: false }, name: "持仓", nameTextStyle: { color: "#6d6454", fontSize: 11 } }
         ],
         series: [
@@ -292,19 +301,28 @@
         document.getElementById("foot").textContent = "图表库 echarts.min.js 未加载，结论文字仍可用。";
         return;
       }
-      try { draw("T", 120); draw("TL", 120); }
+      try { draw("T", 250); draw("TL", 250); }
       catch (err) { document.getElementById("foot").textContent = "画图失败：" + err.message; }
     }
     if (window.echarts) {
       bootCharts();
     } else {
-      const s = document.createElement("script");
-      s.src = "./echarts.min.js";
-      s.onload = bootCharts;
-      s.onerror = () => {
+      const existing = document.querySelector('script[src*="echarts.min.js"]');
+      const fail = () => {
         document.getElementById("foot").textContent = "图表库 echarts.min.js 未加载，结论文字仍可用。";
       };
-      document.body.appendChild(s);
+      if (existing && existing.readyState === "complete") {
+        fail();
+      } else if (existing) {
+        existing.addEventListener("load", bootCharts);
+        existing.addEventListener("error", fail);
+      } else {
+        const s = document.createElement("script");
+        s.src = "./echarts.min.js";
+        s.addEventListener("load", bootCharts);
+        s.addEventListener("error", fail);
+        document.body.appendChild(s);
+      }
     }
     } // end DESK present
   </script>
