@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>国债期货技术面</title>
-  <script src="./echarts.min.js"></script>
   <style>
     :root {
       --ink: #10140f;
@@ -75,9 +74,9 @@
       </div>
       <div class="asof"><b id="asof">—</b><div id="source"></div></div>
     </header>
-    <div class="banner" id="banner"></div>
-    <article class="card" id="card-T"></article>
-    <article class="card" id="card-TL"></article>
+    <div class="banner" id="banner">正在加载结论…</div>
+    <article class="card" id="card-T"><p class="meta">正在写入 T 结论…</p></article>
+    <article class="card" id="card-TL"><p class="meta">正在写入 TL 结论…</p></article>
     <section class="hist">
       <h2>连续变化</h2>
       <div class="rail" id="rail"></div>
@@ -88,10 +87,9 @@
   <script>
     const D = window.DESK;
     if (!D) {
-      document.body.insertAdjacentHTML("afterbegin",
-        '<p style="padding:40px;color:#f1e6cf">data.js 没有加载到，请打开 输出/web/index.html 同目录下的页面。</p>');
-      throw new Error("DESK missing");
-    }
+      document.getElementById("banner").textContent =
+        "data.js 没有加载到。请打开同目录下的 index.html，不要只打开编辑器预览。";
+    } else {
     const fmt = (n, d) => Number(n).toFixed(d);
     const rng = (a, d) => `${fmt(a[0], d)}–${fmt(a[1], d)}`;
     document.getElementById("asof").textContent = D.asof;
@@ -148,6 +146,7 @@
     }
 
     function draw(key, n) {
+      if (!window.echarts) return;
       const spec = D[key];
       const dec = key === "TL" ? 2 : 3;
       const bars = slice(spec.bars, n);
@@ -269,12 +268,6 @@
       new ResizeObserver(() => chart.resize()).observe(el);
     }
 
-    if (!window.echarts) {
-      document.getElementById("foot").textContent = "图表库 echarts.min.js 未加载，结论文字仍可用。";
-    } else {
-      try { draw("T", 120); draw("TL", 120); }
-      catch (err) { document.getElementById("foot").textContent = "画图失败：" + err.message; }
-    }
     document.querySelectorAll(".tools").forEach(box => {
       box.addEventListener("click", e => {
         const btn = e.target.closest("button");
@@ -293,6 +286,27 @@
     });
     document.getElementById("foot").textContent =
       `${D.roll_note} 数据来源于万得 Wind 金融数据服务。`;
+
+    function bootCharts() {
+      if (!window.echarts) {
+        document.getElementById("foot").textContent = "图表库 echarts.min.js 未加载，结论文字仍可用。";
+        return;
+      }
+      try { draw("T", 120); draw("TL", 120); }
+      catch (err) { document.getElementById("foot").textContent = "画图失败：" + err.message; }
+    }
+    if (window.echarts) {
+      bootCharts();
+    } else {
+      const s = document.createElement("script");
+      s.src = "./echarts.min.js";
+      s.onload = bootCharts;
+      s.onerror = () => {
+        document.getElementById("foot").textContent = "图表库 echarts.min.js 未加载，结论文字仍可用。";
+      };
+      document.body.appendChild(s);
+    }
+    } // end DESK present
   </script>
 </body>
 </html>
