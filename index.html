@@ -145,9 +145,10 @@
     document.getElementById("banner").textContent =
       `近20日 T ${D.curve.t_pct > 0 ? "+" : ""}${D.curve.t_pct}% ，TL ${D.curve.tl_pct > 0 ? "+" : ""}${D.curve.tl_pct}% 。${D.curve.note}`;
     const V = D.view || {};
-    document.getElementById("view").innerHTML = V.common
+    document.getElementById("view").innerHTML = (V.T && V.TL)
       ? `<h2>现状判断${V.title ? "：" + V.title : ""}</h2>
-         <p class="common">${V.common}</p>
+         <p class="common">${V.T}</p>
+         <p class="common">${V.TL}</p>
          <div class="risk">⚠ ${V.risk || ""}</div>`
       : (V.body
         ? `<h2>现状判断：${V.title || ""}</h2><p class="body">${V.body}</p><div class="risk">⚠ ${V.risk || ""}</div>`
@@ -161,7 +162,7 @@
       const kdj = ind.kdj || {};
       const items = [
         spec.setup || "",
-        spec.setup_score != null ? `共振 ${spec.setup_score}` : "",
+        spec.setup_score != null ? `净分 ${spec.setup_score > 0 ? "+" : ""}${spec.setup_score}` : "",
         ind.candle,
         `MACD ${macd.hist_state || ""}${macd.cross ? " · " + macd.cross : ""}`,
         rsi.value != null ? `RSI ${rsi.value} ${rsi.zone}` : "",
@@ -170,6 +171,8 @@
         ind.boll && ind.boll.pos ? `BOLL ${ind.boll.pos}` : ""
       ].filter(Boolean);
       const tone = (s) => {
+        if (/修复阳线|中阳|小阳|阳线/.test(s) && !/阴线/.test(s)) return "bull";
+        if (/回吐阴线|小阴|阴线/.test(s)) return "bear";
         if (/偏空|空头|死叉|绿柱|超卖|下方|做空|偏弱/.test(s)) return "bear";
         if (/偏多|多头|金叉|红柱|超买|上方|做多|偏强/.test(s)) return "bull";
         return "";
@@ -320,7 +323,7 @@
           itemStyle: { color },
           name,
           label: {
-            show: true,
+            show: Boolean(name),
             position: "insideLeft",
             distance: 6,
             color: labelColor || "#3d382c",
@@ -339,21 +342,21 @@
         {
           name: "这波失效",
           yAxis: spec.invalid_near,
-          label: { formatter: "这波失效 {c}", position: "insideStartTop", color: C.invN },
+          label: { formatter: "这波 {c}", position: "end", color: C.invN },
           lineStyle: { color: C.invN, width: 1.5, type: "solid" }
         },
         {
           name: "大方向失效",
           yAxis: spec.invalid_trend,
-          label: { formatter: "大方向失效 {c}", position: "insideStartBottom", color: C.invT },
+          label: { formatter: "大方向 {c}", position: "end", color: C.invT },
           lineStyle: { color: C.invT, width: 1, type: "dashed" }
         }
       ] : [];
       const bandData = showBand ? [
         area(spec.support_near[0], spec.support_near[1], C.bandS, "近撑", "#1f4d38"),
         area(spec.resist_near[0], spec.resist_near[1], C.bandR, "近压", "#8a1f16"),
-        area(spec.support_far[0], spec.support_far[1], C.bandSF, "远撑", "#1f4d38"),
-        area(spec.resist_far[0], spec.resist_far[1], C.bandRF, "远压", "#8a1f16")
+        area(spec.support_far[0], spec.support_far[1], C.bandSF, "", "#1f4d38"),
+        area(spec.resist_far[0], spec.resist_far[1], C.bandRF, "", "#8a1f16")
       ] : [];
       const trendSeries = [];
       if (showCh && spec.trend_lower) {
