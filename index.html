@@ -47,8 +47,17 @@
     }
     .view h2 { margin: 0 0 8px; font-size: 20px; }
     .view .body { font-size: 15px; line-height: 1.8; margin: 0 0 10px; overflow-wrap: break-word; white-space: pre-wrap; }
+    .view .common {
+      padding: 8px 10px; margin: 0 0 12px; font-size: 15px; line-height: 1.75;
+      border-left: 4px solid var(--rule);
+    }
+    .tone-bull, .tone-bull .body, .tone-bull h3 { color: var(--vermilion); }
+    .tone-bear, .tone-bear .body, .tone-bear h3 { color: var(--moss); }
+    .common.tone-bull { border-left-color: var(--vermilion); }
+    .common.tone-bear { border-left-color: var(--moss); }
     .view-split { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 20px; margin: 0 0 10px; }
-    .view-split h3 { margin: 0 0 6px; font-size: 16px; }
+    .view-split h3 { margin: 0 0 6px; font-size: 16px; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+    .view-split .now { font-family: "Fraunces", serif; font-size: 22px; letter-spacing: -.03em; }
     .view .risk {
       border: 1px solid rgba(196,60,44,.35); background: rgba(196,60,44,.08);
       padding: 8px 10px; font-size: 13px; line-height: 1.75;
@@ -141,11 +150,17 @@
     document.getElementById("banner").textContent =
       `近20日 T ${D.curve.t_pct > 0 ? "+" : ""}${D.curve.t_pct}% ，TL ${D.curve.tl_pct > 0 ? "+" : ""}${D.curve.tl_pct}% 。${D.curve.note}`;
     const V = D.view || {};
+    const toneCls = (t) => t === "bear" ? "tone-bear" : (t === "bull" ? "tone-bull" : "");
+    const closeOf = (key) => {
+      const spec = D[key];
+      return spec ? fmt(spec.close, key === "TL" ? 2 : 3) : "";
+    };
     document.getElementById("view").innerHTML = (V.T && V.TL)
-      ? `<h2>现状判断${V.title ? "：" + V.title : ""}</h2>
+      ? `<h2 class="${toneCls(V.tone)}">现状判断${V.title ? "：" + V.title : ""}</h2>
+         ${V.common ? `<p class="common ${toneCls(V.tone)}">${V.common}</p>` : ""}
          <div class="view-split">
-           <div><h3>T（10年）</h3><p class="body">${V.T}</p></div>
-           <div><h3>TL（30年）</h3><p class="body">${V.TL}</p></div>
+           <div class="${toneCls(V.tone_T)}"><h3>T（10年）<span class="now">${closeOf("T")}</span></h3><p class="body">${V.T}</p></div>
+           <div class="${toneCls(V.tone_TL)}"><h3>TL（30年）<span class="now">${closeOf("TL")}</span></h3><p class="body">${V.TL}</p></div>
          </div>
          <div class="risk">⚠ ${V.risk || ""}</div>`
       : (V.body
@@ -306,8 +321,20 @@
       const oiMap = Object.fromEntries((spec.oi || []).map(p => [p.time, p.value]));
       const oi = dates.map(d => oiMap[d] ?? null);
       const ma = (f) => bars.map(b => b[f]);
-      const area = (lo, hi, color, name) => ([
-        { yAxis: lo, itemStyle: { color }, name },
+      const area = (lo, hi, color, name, labelColor) => ([
+        {
+          yAxis: lo,
+          itemStyle: { color },
+          name,
+          label: {
+            show: true,
+            position: "insideLeft",
+            distance: 6,
+            color: labelColor || "#3d382c",
+            fontSize: 11,
+            fontFamily: "IBM Plex Mono, monospace"
+          }
+        },
         { yAxis: hi }
       ]);
       const showInv = layerOn(key, "inv");
@@ -330,10 +357,10 @@
         }
       ] : [];
       const bandData = showBand ? [
-        area(spec.support_near[0], spec.support_near[1], C.bandS, "近撑"),
-        area(spec.resist_near[0], spec.resist_near[1], C.bandR, "近压"),
-        area(spec.support_far[0], spec.support_far[1], C.bandSF, "远撑"),
-        area(spec.resist_far[0], spec.resist_far[1], C.bandRF, "远压")
+        area(spec.support_near[0], spec.support_near[1], C.bandS, "近撑", "#1f4d38"),
+        area(spec.resist_near[0], spec.resist_near[1], C.bandR, "近压", "#8a1f16"),
+        area(spec.support_far[0], spec.support_far[1], C.bandSF, "远撑", "#1f4d38"),
+        area(spec.resist_far[0], spec.resist_far[1], C.bandRF, "远压", "#8a1f16")
       ] : [];
       const trendSeries = [];
       if (showCh && spec.trend_lower) {
@@ -401,7 +428,11 @@
           {
             name: "K线", type: "candlestick", data: candle, xAxisIndex: 0, yAxisIndex: 0,
             itemStyle: { color: "#c43c2c", color0: "#2f6b4f", borderColor: "#c43c2c", borderColor0: "#2f6b4f" },
-            markArea: { silent: true, data: bandData },
+            markArea: {
+              silent: true,
+              label: { show: true, position: "insideLeft" },
+              data: bandData
+            },
             markLine: { symbol: "none", data: markLine }
           },
           ...(showMaS ? [
