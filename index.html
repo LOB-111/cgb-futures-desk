@@ -70,9 +70,14 @@
     .meta { font-size: 14px; line-height: 1.55; }
     .levels { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; font-family: "IBM Plex Mono", monospace; font-size: 12px; margin: 8px 0 10px; }
     .levels span { color: var(--mute); }
-    .tools { display: flex; gap: 6px; margin: 0 0 8px; }
-    .tools button { font-family: "IBM Plex Mono", monospace; font-size: 11px; border: 1px solid var(--rule); background: transparent; padding: 3px 8px; cursor: pointer; }
-    .tools button.on { background: var(--ink); color: var(--paper); }
+    .tools, .layers { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px; align-items: center; }
+    .tools button, .layers button {
+      font-family: "IBM Plex Mono", monospace; font-size: 11px;
+      border: 1px solid var(--rule); background: transparent; padding: 3px 8px; cursor: pointer;
+    }
+    .tools button.on, .layers button.on { background: var(--ink); color: var(--paper); }
+    .layers button.solo { background: var(--vermilion); color: #fff; border-color: var(--vermilion); }
+    .layers .hint { font-size: 11px; color: var(--mute); }
     .chart { height: 680px; width: 100%; position: relative; }
     .chart:empty::before {
       content: "正在画图…";
@@ -81,8 +86,11 @@
       color: #6d6454; font-size: 13px;
     }
     .note { font-size: 12px; color: #6d6454; margin: 6px 0 0; }
-    .legend { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: 12px; color: var(--mute); margin-top: 8px; }
-    .legend b { display: inline-block; width: 12px; height: 8px; margin-right: 4px; vertical-align: middle; opacity: .7; }
+    .legend { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: 12px; color: var(--mute); margin-top: 8px; min-height: 18px; }
+    .legend span { display: inline-flex; align-items: center; gap: 5px; }
+    .legend .sw { width: 14px; height: 3px; display: inline-block; }
+    .legend .sw.dash { height: 0; border-top: 2px dashed; background: none !important; width: 16px; }
+    .legend .sw.band { height: 8px; width: 12px; opacity: .55; }
     .hist h2 { font-size: 18px; }
     .rail { display: flex; gap: 10px; overflow-x: auto; }
     .pill { min-width: 168px; background: var(--pine); border: 1px solid rgba(241,230,207,.16); padding: 10px 12px; font-family: "IBM Plex Mono", monospace; font-size: 12px; }
@@ -175,20 +183,85 @@
           <button data-n="250">1年</button>
           <button data-n="9999">全部</button>
         </div>
+        <div class="layers" data-key="${key}">
+          <button class="on" data-layer="maS" title="MA10 / MA20">短均</button>
+          <button data-layer="maL" title="MA60 / MA120">长均</button>
+          <button class="on" data-layer="ch" title="波段高低点连线，不是均线">通道</button>
+          <button class="on" data-layer="band" title="近端支撑 / 压力色带">色带</button>
+          <button class="on" data-layer="inv" title="这波失效 / 大方向失效">失效</button>
+          <span class="hint">单击开关 · 双击只看这层</span>
+        </div>
         <div class="chart" id="ch-${key}"></div>
         <p class="note">${spec.oi_note || ""}</p>
-        <div class="legend">
-          <span><b style="background:#2f6b4f"></b>近端支撑带</span>
-          <span><b style="background:#c43c2c"></b>近端压力带</span>
-          <span><b style="background:#8a5a22"></b>通道趋势线</span>
-          <span><b style="background:#0e7c7b"></b>MA10</span>
-          <span><b style="background:#3b6ea5"></b>MA20</span>
-        </div>`;
+        <div class="legend" id="lg-${key}"></div>`;
     }
     document.getElementById("card-T").innerHTML = card("T", D.T);
     document.getElementById("card-TL").innerHTML = card("TL", D.TL);
 
     const charts = {};
+    const observers = {};
+    const rangeN = { T: 60, TL: 60 };
+    const clickWait = {};
+    const C = {
+      ma10: "#0e7c7b",
+      ma20: "#3b6ea5",
+      ma60: "#6b4ea1",
+      ma120: "#d97706",
+      ch: "#9a3412",
+      invN: "#8a1f16",
+      invT: "#57534e",
+      bandS: "rgba(47,107,79,.22)",
+      bandR: "rgba(196,60,44,.18)",
+      bandSF: "rgba(47,107,79,.10)"
+    };
+    const defaultLayers = () => ({ maS: true, maL: false, ch: true, band: true, inv: true, solo: null });
+    const layers = { T: defaultLayers(), TL: defaultLayers() };
+
+    function layerOn(key, name) {
+      const L = layers[key];
+      if (L.solo) return L.solo === name;
+      return !!L[name];
+    }
+    function paintLayerButtons(key) {
+      const box = document.querySelector(`.layers[data-key="${key}"]`);
+      if (!box) return;
+      const L = layers[key];
+      box.querySelectorAll("button[data-layer]").forEach(btn => {
+        const name = btn.dataset.layer;
+        btn.classList.toggle("solo", L.solo === name);
+        btn.classList.toggle("on", L.solo ? L.solo === name : !!L[name]);
+      });
+    }
+    function legendHtml(key) {
+      const item = (cls, color, label) => {
+        const style = cls.includes("dash")
+          ? `border-color:${color}`
+          : `background:${color}`;
+        return `<span><i class="sw ${cls}" style="${style}"></i>${label}</span>`;
+      };
+      const out = [];
+      if (layerOn(key, "band")) {
+        out.push(item("band", "#2f6b4f", "近端支撑带"));
+        out.push(item("band", "#c43c2c", "近端压力带"));
+      }
+      if (layerOn(key, "ch")) {
+        out.push(item("", C.ch, "通道下沿"));
+        out.push(item("dash", C.ch, "通道上沿"));
+      }
+      if (layerOn(key, "maS")) {
+        out.push(item("", C.ma10, "MA10"));
+        out.push(item("", C.ma20, "MA20"));
+      }
+      if (layerOn(key, "maL")) {
+        out.push(item("", C.ma60, "MA60"));
+        out.push(item("", C.ma120, "MA120"));
+      }
+      if (layerOn(key, "inv")) {
+        out.push(item("", C.invN, "这波失效"));
+        out.push(item("dash", C.invT, "大方向失效"));
+      }
+      return out.join("");
+    }
     function slice(bars, n) { return n >= bars.length ? bars : bars.slice(-n); }
     function extendLine(p1, p2, dates) {
       if (!p1 || !p2 || dates.length < 2) return [];
@@ -203,6 +276,11 @@
 
     function draw(key, n) {
       if (!window.echarts) return;
+      if (n) rangeN[key] = n;
+      n = rangeN[key];
+      paintLayerButtons(key);
+      const lg = document.getElementById("lg-" + key);
+      if (lg) lg.innerHTML = legendHtml(key);
       const spec = D[key];
       const dec = key === "TL" ? 2 : 3;
       const bars = slice(spec.bars, n);
@@ -219,34 +297,44 @@
         { yAxis: lo, itemStyle: { color }, name },
         { yAxis: hi }
       ]);
-      const markLine = [
+      const showInv = layerOn(key, "inv");
+      const showBand = layerOn(key, "band");
+      const showCh = layerOn(key, "ch");
+      const showMaS = layerOn(key, "maS");
+      const showMaL = layerOn(key, "maL");
+      const markLine = showInv ? [
         {
           name: "这波失效",
           yAxis: spec.invalid_near,
-          label: { formatter: "这波失效 {c}", position: "insideStartTop", color: "#8a1f16" },
-          lineStyle: { color: "#8a1f16", width: 1.5, type: "solid" }
+          label: { formatter: "这波失效 {c}", position: "insideStartTop", color: C.invN },
+          lineStyle: { color: C.invN, width: 1.5, type: "solid" }
         },
         {
           name: "大方向失效",
           yAxis: spec.invalid_trend,
-          label: { formatter: "大方向失效 {c}", position: "insideStartBottom", color: "#5c4a2e" },
-          lineStyle: { color: "#5c4a2e", width: 1, type: "dashed" }
+          label: { formatter: "大方向失效 {c}", position: "insideStartBottom", color: C.invT },
+          lineStyle: { color: C.invT, width: 1, type: "dashed" }
         }
-      ];
+      ] : [];
+      const bandData = showBand ? [
+        area(spec.support_near[0], spec.support_near[1], C.bandS, "近撑"),
+        area(spec.resist_near[0], spec.resist_near[1], C.bandR, "近压"),
+        area(spec.support_far[0], spec.support_far[1], C.bandSF, "远撑")
+      ] : [];
       const trendSeries = [];
-      if (spec.trend_lower) {
+      if (showCh && spec.trend_lower) {
         trendSeries.push({
           name: "通道下沿", type: "line", xAxisIndex: 0, yAxisIndex: 0,
           data: extendLine(spec.trend_lower[0], spec.trend_lower[1], dates),
-          showSymbol: false, lineStyle: { color: "#8a5a22", width: 1.6 },
+          showSymbol: false, lineStyle: { color: C.ch, width: 2 },
           tooltip: { show: false }
         });
       }
-      if (spec.trend_upper) {
+      if (showCh && spec.trend_upper) {
         trendSeries.push({
           name: "通道上沿", type: "line", xAxisIndex: 0, yAxisIndex: 0,
           data: extendLine(spec.trend_upper[0], spec.trend_upper[1], dates),
-          showSymbol: false, lineStyle: { color: "#8a5a22", width: 1.6, type: "dashed" },
+          showSymbol: false, lineStyle: { color: C.ch, width: 2, type: "dashed" },
           tooltip: { show: false }
         });
       }
@@ -299,20 +387,13 @@
           {
             name: "K线", type: "candlestick", data: candle, xAxisIndex: 0, yAxisIndex: 0,
             itemStyle: { color: "#c43c2c", color0: "#2f6b4f", borderColor: "#c43c2c", borderColor0: "#2f6b4f" },
-            markArea: {
-              silent: true,
-              data: [
-                area(spec.support_near[0], spec.support_near[1], "rgba(47,107,79,.22)", "近撑"),
-                area(spec.resist_near[0], spec.resist_near[1], "rgba(196,60,44,.18)", "近压"),
-                area(spec.support_far[0], spec.support_far[1], "rgba(47,107,79,.10)", "远撑")
-              ]
-            },
+            markArea: { silent: true, data: bandData },
             markLine: { symbol: "none", data: markLine }
           },
-          { name: "MA10", type: "line", data: ma("ma10"), xAxisIndex: 0, yAxisIndex: 0, showSymbol: false, lineStyle: { color: "#0e7c7b", width: 1.4 } },
-          { name: "MA20", type: "line", data: ma("ma20"), xAxisIndex: 0, yAxisIndex: 0, showSymbol: false, lineStyle: { color: "#3b6ea5", width: 1.6 } },
-          { name: "MA60", type: "line", data: ma("ma60"), xAxisIndex: 0, yAxisIndex: 0, showSymbol: false, lineStyle: { color: "#6b4ea1", width: 1 } },
-          { name: "MA120", type: "line", data: ma("ma120"), xAxisIndex: 0, yAxisIndex: 0, showSymbol: false, lineStyle: { color: "#8a5a22", width: 1 } },
+          { name: "MA10", type: "line", data: ma("ma10"), xAxisIndex: 0, yAxisIndex: 0, show: showMaS, showSymbol: false, lineStyle: { color: C.ma10, width: 1.6 } },
+          { name: "MA20", type: "line", data: ma("ma20"), xAxisIndex: 0, yAxisIndex: 0, show: showMaS, showSymbol: false, lineStyle: { color: C.ma20, width: 1.8 } },
+          { name: "MA60", type: "line", data: ma("ma60"), xAxisIndex: 0, yAxisIndex: 0, show: showMaL, showSymbol: false, lineStyle: { color: C.ma60, width: 1.3 } },
+          { name: "MA120", type: "line", data: ma("ma120"), xAxisIndex: 0, yAxisIndex: 0, show: showMaL, showSymbol: false, lineStyle: { color: C.ma120, width: 1.3 } },
           ...trendSeries,
           {
             name: "MACD柱", type: "bar", data: bars.map(b => ({
@@ -336,8 +417,10 @@
           }
         ]
       });
+      if (observers[key]) observers[key].disconnect();
+      observers[key] = new ResizeObserver(() => chart.resize());
+      observers[key].observe(el);
       charts[key] = chart;
-      new ResizeObserver(() => chart.resize()).observe(el);
     }
 
     document.querySelectorAll(".tools").forEach(box => {
@@ -347,6 +430,31 @@
         box.querySelectorAll("button").forEach(b => b.classList.remove("on"));
         btn.classList.add("on");
         draw(box.dataset.key, Number(btn.dataset.n));
+      });
+    });
+    document.querySelectorAll(".layers").forEach(box => {
+      const key = box.dataset.key;
+      box.addEventListener("click", e => {
+        const btn = e.target.closest("button[data-layer]");
+        if (!btn) return;
+        const name = btn.dataset.layer;
+        clearTimeout(clickWait[key]);
+        clickWait[key] = setTimeout(() => {
+          const L = layers[key];
+          if (L.solo) L.solo = null;
+          else L[name] = !L[name];
+          draw(key);
+        }, 220);
+      });
+      box.addEventListener("dblclick", e => {
+        const btn = e.target.closest("button[data-layer]");
+        if (!btn) return;
+        e.preventDefault();
+        clearTimeout(clickWait[key]);
+        const L = layers[key];
+        const name = btn.dataset.layer;
+        L.solo = L.solo === name ? null : name;
+        draw(key);
       });
     });
     const rail = document.getElementById("rail");
