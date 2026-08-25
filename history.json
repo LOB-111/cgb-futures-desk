@@ -15,5 +15,23 @@
       "pattern": "上升之后的回调",
       "close": 115.86
     }
+  },
+  {
+    "asof": "2026-08-24",
+    "title": "价先走、指标还没跟上",
+    "T": {
+      "bias": "偏多",
+      "confidence": "中",
+      "invalid_near": 109.3,
+      "pattern": "上升通道，上沿回撤",
+      "close": 109.555
+    },
+    "TL": {
+      "bias": "偏多",
+      "confidence": "中",
+      "invalid_near": 115.72,
+      "pattern": "上升通道，上沿回撤",
+      "close": 116.68
+    }
   }
 ]
