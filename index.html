@@ -47,6 +47,8 @@
     }
     .view h2 { margin: 0 0 8px; font-size: 20px; }
     .view .body { font-size: 15px; line-height: 1.8; margin: 0 0 10px; overflow-wrap: break-word; white-space: pre-wrap; }
+    .view-split { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 20px; margin: 0 0 10px; }
+    .view-split h3 { margin: 0 0 6px; font-size: 16px; }
     .view .risk {
       border: 1px solid rgba(196,60,44,.35); background: rgba(196,60,44,.08);
       padding: 8px 10px; font-size: 13px; line-height: 1.75;
@@ -102,6 +104,7 @@
       .chart { height: 620px; }
       .levels { font-size: 11px; }
       .px { font-size: 28px; }
+      .view-split { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -138,9 +141,16 @@
     document.getElementById("banner").textContent =
       `近20日 T ${D.curve.t_pct > 0 ? "+" : ""}${D.curve.t_pct}% ，TL ${D.curve.tl_pct > 0 ? "+" : ""}${D.curve.tl_pct}% 。${D.curve.note}`;
     const V = D.view || {};
-    document.getElementById("view").innerHTML = V.body
-      ? `<h2>现状判断：${V.title || ""}</h2><p class="body">${V.body}</p><div class="risk">⚠ ${V.risk || ""}</div>`
-      : `<h2>现状判断</h2><p class="body">本页还没有现状判断。</p>`;
+    document.getElementById("view").innerHTML = (V.T && V.TL)
+      ? `<h2>现状判断${V.title ? "：" + V.title : ""}</h2>
+         <div class="view-split">
+           <div><h3>T（10年）</h3><p class="body">${V.T}</p></div>
+           <div><h3>TL（30年）</h3><p class="body">${V.TL}</p></div>
+         </div>
+         <div class="risk">⚠ ${V.risk || ""}</div>`
+      : (V.body
+        ? `<h2>现状判断：${V.title || ""}</h2><p class="body">${V.body}</p><div class="risk">⚠ ${V.risk || ""}</div>`
+        : `<h2>现状判断</h2><p class="body">本页还没有现状判断。</p>`);
 
     function chips(spec) {
       const ind = spec.indicators;
@@ -212,7 +222,8 @@
       invT: "#57534e",
       bandS: "rgba(47,107,79,.22)",
       bandR: "rgba(196,60,44,.18)",
-      bandSF: "rgba(47,107,79,.10)"
+      bandSF: "rgba(47,107,79,.10)",
+      bandRF: "rgba(196,60,44,.10)"
     };
     const defaultLayers = () => ({ maS: true, maL: false, ch: true, band: true, inv: true, solo: null });
     const layers = { T: defaultLayers(), TL: defaultLayers() };
@@ -243,6 +254,8 @@
       if (layerOn(key, "band")) {
         out.push(item("band", "#2f6b4f", "近端支撑带"));
         out.push(item("band", "#c43c2c", "近端压力带"));
+        out.push(item("band", "rgba(47,107,79,.45)", "远端支撑带"));
+        out.push(item("band", "rgba(196,60,44,.35)", "远端压力带"));
       }
       if (layerOn(key, "ch")) {
         out.push(item("", C.ch, "通道下沿"));
@@ -319,7 +332,8 @@
       const bandData = showBand ? [
         area(spec.support_near[0], spec.support_near[1], C.bandS, "近撑"),
         area(spec.resist_near[0], spec.resist_near[1], C.bandR, "近压"),
-        area(spec.support_far[0], spec.support_far[1], C.bandSF, "远撑")
+        area(spec.support_far[0], spec.support_far[1], C.bandSF, "远撑"),
+        area(spec.resist_far[0], spec.resist_far[1], C.bandRF, "远压")
       ] : [];
       const trendSeries = [];
       if (showCh && spec.trend_lower) {
