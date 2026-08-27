@@ -1,37 +1,84 @@
 [
   {
-    "asof": "2026-08-21",
+    "rules_version": "v2.1-20260826",
+    "asof": "2026-08-25",
+    "title": "震荡整理",
     "T": {
       "bias": "偏多",
-      "confidence": "中",
-      "invalid_near": 109.3,
-      "pattern": "上升通道，上沿回撤",
-      "close": 109.455
+      "invalid_near": 109.413,
+      "pattern": "上升通道",
+      "pattern_label": "上升通道",
+      "pattern_window": 50,
+      "stage": "震荡整理",
+      "focus": "测试近端压力",
+      "indicators": {
+        "MACD": "中性",
+        "KDJ": "偏弱",
+        "RSI": "中性",
+        "布林": "明显收缩"
+      },
+      "verdict": "无明显修正",
+      "volatility": "明显收缩",
+      "close": 109.53
     },
     "TL": {
       "bias": "偏多",
-      "confidence": "中",
-      "invalid_near": 115.21,
-      "pattern": "上升之后的回调",
-      "close": 115.86
+      "invalid_near": 116.22,
+      "pattern": "上升通道",
+      "pattern_label": "上升通道",
+      "pattern_window": 60,
+      "stage": "震荡整理",
+      "focus": "测试近端压力",
+      "indicators": {
+        "MACD": "明确顶背离",
+        "KDJ": "偏弱",
+        "RSI": "中性",
+        "布林": "正常"
+      },
+      "verdict": "偏弱警告",
+      "volatility": "正常",
+      "close": 116.62
     }
   },
   {
-    "asof": "2026-08-24",
-    "title": "价先走、指标还没跟上",
+    "rules_version": "v2.1-20260826",
+    "asof": "2026-08-27",
+    "title": "趋势回调",
     "T": {
       "bias": "偏多",
-      "confidence": "中",
-      "invalid_near": 109.3,
-      "pattern": "上升通道，上沿回撤",
-      "close": 109.555
+      "invalid_near": null,
+      "pattern": "结构不清晰",
+      "pattern_label": "结构不清晰",
+      "pattern_window": null,
+      "stage": "趋势回调",
+      "focus": "测试近端压力",
+      "indicators": {
+        "MACD": "中性",
+        "KDJ": "偏弱",
+        "RSI": "中性",
+        "布林": "明显收缩"
+      },
+      "verdict": "无明显修正",
+      "volatility": "明显收缩",
+      "close": 109.485
     },
     "TL": {
       "bias": "偏多",
-      "confidence": "中",
-      "invalid_near": 115.72,
-      "pattern": "上升通道，上沿回撤",
-      "close": 116.68
+      "invalid_near": null,
+      "pattern": "结构不清晰",
+      "pattern_label": "结构不清晰",
+      "pattern_window": null,
+      "stage": "趋势回调",
+      "focus": "测试近端支撑",
+      "indicators": {
+        "MACD": "中性",
+        "KDJ": "偏弱",
+        "RSI": "中性",
+        "布林": "明显收缩"
+      },
+      "verdict": "无明显修正",
+      "volatility": "明显收缩",
+      "close": 116.57
     }
   }
 ]
