@@ -534,6 +534,16 @@
         }
       };
       if (showInv) {
+        const refs = spec.structure_levels || {};
+        const same = (a, b) => a && b && +a[0] === +b[0] && +a[1] === +b[1];
+        const refS = refs.support_reference;
+        const refR = refs.resistance_reference;
+        if (refS && !same(refS.zone, spec.support_far)) {
+          refS.zone.forEach(y => pushHLine(`原结构支撑·${refS.label || "参考"}`, y, C.structS, refS.displaced ? 0.8 : 1.15, "原结构支撑仅用于阶段跌破确认，不作为当前下行路径。"));
+        }
+        if (refR && !same(refR.zone, spec.resist_far)) {
+          refR.zone.forEach(y => pushHLine(`原结构压力·${refR.label || "参考"}`, y, C.structR, refR.displaced ? 0.8 : 1.15, "原结构压力仅用于阶段突破确认，不作为当前上行路径。"));
+        }
         shapeLines.forEach(y => {
           pushHLine("形态边界", y, C.invN, 1.3, `形态边界 ${fmt(y, dec)}<br>当前形态：${patName}`);
         });

@@ -69,7 +69,7 @@
       "pattern_window": 50,
       "channel_quality": "中",
       "stage": "趋势回调",
-      "focus": "结构支撑初步跌破",
+      "focus": "原结构支撑初步跌破",
       "indicators": {
         "MACD": "弱顶背离·失效",
         "KDJ": "中性",
@@ -91,7 +91,7 @@
       "pattern_window": 60,
       "channel_quality": "中",
       "stage": "趋势回调",
-      "focus": "结构支撑初步跌破",
+      "focus": "原结构支撑初步跌破",
       "indicators": {
         "MACD": "明确顶背离·失效",
         "KDJ": "中性",
