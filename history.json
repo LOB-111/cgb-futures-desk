@@ -1,84 +1,108 @@
 [
   {
-    "rules_version": "v2.1-20260826",
-    "asof": "2026-08-25",
-    "title": "震荡整理",
+    "rules_version": "v2.10-channel-quality-20260827",
+    "asof": "2026-08-26",
+    "title": "T 趋势回调，TL 震荡整理",
+    "current_contract": {
+      "T": "T2612.CFE",
+      "TL": "TL2612.CFE"
+    },
     "T": {
       "bias": "偏多",
-      "invalid_near": 109.413,
+      "direction_progress": null,
+      "invalid_near": 109.322,
       "pattern": "上升通道",
       "pattern_label": "上升通道",
       "pattern_window": 50,
-      "stage": "震荡整理",
+      "channel_quality": "高",
+      "stage": "趋势回调",
       "focus": "测试近端压力",
       "indicators": {
-        "MACD": "中性",
-        "KDJ": "偏弱",
+        "MACD": "弱顶背离·换月重估",
+        "KDJ": "中性",
         "RSI": "中性",
-        "布林": "明显收缩"
+        "BOLL": "轨道内部·波动正常"
       },
       "verdict": "无明显修正",
-      "volatility": "明显收缩",
-      "close": 109.53
+      "volatility": "正常",
+      "close": 109.44,
+      "state_change_reason": "roll_recalibration",
+      "analysis_contract": "T2612.CFE"
     },
     "TL": {
       "bias": "偏多",
-      "invalid_near": 116.22,
+      "direction_progress": null,
+      "invalid_near": 115.9,
       "pattern": "上升通道",
       "pattern_label": "上升通道",
       "pattern_window": 60,
+      "channel_quality": "中",
       "stage": "震荡整理",
       "focus": "测试近端压力",
       "indicators": {
-        "MACD": "明确顶背离",
-        "KDJ": "偏弱",
+        "MACD": "明确顶背离·换月重估",
+        "KDJ": "中性",
         "RSI": "中性",
-        "布林": "正常"
+        "BOLL": "轨道内部·波动正常"
       },
-      "verdict": "偏弱警告",
+      "verdict": "无明显修正",
       "volatility": "正常",
-      "close": 116.62
+      "close": 116.46,
+      "state_change_reason": "roll_recalibration",
+      "analysis_contract": "TL2612.CFE"
     }
   },
   {
-    "rules_version": "v2.1-20260826",
+    "rules_version": "v2.10-channel-quality-20260827",
     "asof": "2026-08-27",
     "title": "趋势回调",
+    "current_contract": {
+      "T": "T2612.CFE",
+      "TL": "TL2612.CFE"
+    },
     "T": {
       "bias": "偏多",
-      "invalid_near": null,
-      "pattern": "结构不清晰",
-      "pattern_label": "结构不清晰",
-      "pattern_window": null,
+      "direction_progress": null,
+      "invalid_near": 109.335,
+      "pattern": "上升通道",
+      "pattern_label": "上升通道",
+      "pattern_window": 50,
+      "channel_quality": "中",
       "stage": "趋势回调",
-      "focus": "测试近端压力",
+      "focus": "结构支撑初步跌破",
       "indicators": {
-        "MACD": "中性",
-        "KDJ": "偏弱",
+        "MACD": "弱顶背离·失效",
+        "KDJ": "中性",
         "RSI": "中性",
-        "布林": "明显收缩"
+        "BOLL": "轨道内部·波动正常"
       },
       "verdict": "无明显修正",
-      "volatility": "明显收缩",
-      "close": 109.485
+      "volatility": "正常",
+      "close": 109.275,
+      "state_change_reason": "market_event",
+      "analysis_contract": "T2612.CFE"
     },
     "TL": {
       "bias": "偏多",
-      "invalid_near": null,
-      "pattern": "结构不清晰",
-      "pattern_label": "结构不清晰",
-      "pattern_window": null,
+      "direction_progress": null,
+      "invalid_near": 115.97,
+      "pattern": "上升通道",
+      "pattern_label": "上升通道",
+      "pattern_window": 60,
+      "channel_quality": "中",
       "stage": "趋势回调",
-      "focus": "测试近端支撑",
+      "focus": "结构支撑初步跌破",
       "indicators": {
-        "MACD": "中性",
-        "KDJ": "偏弱",
+        "MACD": "明确顶背离·失效",
+        "KDJ": "中性",
         "RSI": "中性",
-        "布林": "明显收缩"
+        "BOLL": "轨道内部·明显收缩"
       },
       "verdict": "无明显修正",
       "volatility": "明显收缩",
-      "close": 116.57
+      "close": 115.84,
+      "state_change_reason": "market_event",
+      "analysis_contract": "TL2612.CFE"
     }
   }
 ]

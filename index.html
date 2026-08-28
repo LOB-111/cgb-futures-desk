@@ -193,7 +193,7 @@
       if (name === "MACD" && /弱/.test(val)) return "gold";
       if (name === "RSI" && /偏高/.test(val)) return "bull";
       if (name === "RSI" && /偏低/.test(val)) return "bear";
-      if (name === "布林" && /收缩|扩张/.test(val)) return "gold";
+      if ((name === "布林" || name === "BOLL") && /收缩|扩张|上轨|下轨/.test(val)) return "gold";
       return "neutral";
     }
     function sameZone(a, b) {
@@ -212,6 +212,22 @@
     }
     function patternText(spec) {
       return spec.pattern_label || PATTERN_LABELS[spec.pattern] || spec.pattern;
+    }
+    function channelQualityText(spec) {
+      if (!String(spec.pattern_label || spec.pattern || "").includes("通道")) return "";
+      return {"低":"边界较松", "不合格":"边界较松"}[spec.channel_quality] || "";
+    }
+    function shapeRiskText(spec) {
+      return ["推进减弱", "显著承压", "失效待确认", "换月重估", "待重构"].includes(spec.shape_status)
+        ? spec.shape_status : "";
+    }
+    function secondaryStructureTag(spec) {
+      const item = spec.secondary_structure;
+      if (!item || !item.type || item.active === false || item.status === "失效") return "";
+      const explanation = item.type === "双顶"
+        ? "两个相近重要高点之间出现明显回落；确认表示收盘已有效跌破中间低点（颈线）。"
+        : "两个相近重要低点之间出现明显反弹；确认表示收盘已有效突破中间高点（颈线）。";
+      return `<span class="pwindow" title="${explanation}">${item.type}${item.status || ""}</span>`;
     }
     function tones(spec) {
       return spec.layer_tones || {};
@@ -258,12 +274,12 @@
           <div class="four">
             <div>
               <div class="flab">中期方向</div>
-              <div class="fval dir ${T.direction || ""}">${spec.bias}${spec.direction_status && spec.direction_status !== "完整" ? `<span class="pwindow">${spec.direction_status}</span>` : ""}</div>
+              <div class="fval dir ${T.direction || ""}">${spec.bias}${spec.direction_status && spec.direction_status !== "完整" ? `<span class="pwindow">${spec.direction_status}</span>` : ""}${spec.direction_phase === "待重建" ? `<span class="pwindow">待重建</span>` : ""}${spec.direction_progress ? `<span class="pwindow">${spec.direction_progress}</span>` : ""}</div>
               ${boundLine(B.direction)}
             </div>
             <div>
               <div class="flab">运行形态</div>
-              <div class="fval pattern ${T.pattern || ""}">${patternText(spec)}${spec.pattern_window ? `<span class="pwindow">有效窗口 ${spec.pattern_window} 日</span>` : ""}${spec.secondary_structure && spec.secondary_structure.type ? `<span class="pwindow">${spec.secondary_structure.type}${spec.secondary_structure.status || ""}</span>` : ""}</div>
+              <div class="fval pattern ${T.pattern || ""}">${patternText(spec)}${channelQualityText(spec) ? `<span class="pwindow">${channelQualityText(spec)}</span>` : ""}${shapeRiskText(spec) ? `<span class="pwindow">${shapeRiskText(spec)}</span>` : ""}${secondaryStructureTag(spec)}</div>
               ${boundLine(B.pattern)}
             </div>
             <div>
@@ -328,9 +344,9 @@
       ma20: "#3b6ea5",
       ma60: "#6b4ea1",
       ma120: "#d97706",
-      ch: "rgba(154,52,18,.78)",
-      invN: "rgba(138,90,34,.34)",
-      invT: "rgba(87,83,78,.42)",
+      ch: "rgba(154,52,18,.82)",
+      invN: "rgba(138,90,34,.78)",
+      invT: "rgba(55,52,48,.82)",
       bandS: "rgba(196,60,44,.08)",
       bandR: "rgba(47,107,79,.08)",
       bandSF: "rgba(196,60,44,.16)",
@@ -356,6 +372,26 @@
         btn.classList.toggle("on", L.solo ? L.solo === name : !!L[name]);
       });
     }
+    function nums(xs) {
+      return xs.filter(v => v != null && v !== "" && !Number.isNaN(+v)).map(v => +v);
+    }
+    function shapeBoundaryYs(spec) {
+      const ys = [];
+      if (spec.shape_boundary_type === "two_sided") {
+        if (spec.shape_boundary_lower != null) ys.push(+spec.shape_boundary_lower);
+        if (spec.shape_boundary_upper != null) ys.push(+spec.shape_boundary_upper);
+      } else if (spec.invalid_near != null) {
+        ys.push(+spec.invalid_near);
+      } else {
+        if (spec.shape_boundary_lower != null) ys.push(+spec.shape_boundary_lower);
+        if (spec.shape_boundary_upper != null) ys.push(+spec.shape_boundary_upper);
+      }
+      return nums(ys);
+    }
+    function railPrices(rail) {
+      if (!Array.isArray(rail)) return [];
+      return nums(rail.map(p => Array.isArray(p) ? p[1] : null));
+    }
     function legendHtml(key) {
       const item = (cls, color, label) => {
         const style = cls.includes("dash")
@@ -363,6 +399,7 @@
           : `background:${color}`;
         return `<span><i class="sw ${cls}" style="${style}"></i>${label}</span>`;
       };
+      const spec = D[key];
       const out = [];
       if (layerOn(key, "band")) {
         out.push(item("band", "rgba(196,60,44,.45)", "近端支撑带"));
@@ -371,10 +408,10 @@
         out.push(item("band", "rgba(47,107,79,.22)", "结构压力区"));
       }
       if (layerOn(key, "ref")) {
-        out.push(item("dash", C.ch, "通道下沿"));
-        out.push(item("dash", C.ch, "通道上沿"));
-        out.push(item("dash", C.invN, "形态边界"));
-        out.push(item("dash", C.invT, "方向失效"));
+        if (spec.trend_lower) out.push(item("dash", C.ch, "通道下沿"));
+        if (spec.trend_upper) out.push(item("dash", C.ch, "通道上沿"));
+        if (shapeBoundaryYs(spec).length) out.push(item("dash", C.invN, "形态边界"));
+        if (spec.invalid_trend != null) out.push(item("dash", C.invT, "方向失效"));
       }
       if (layerOn(key, "maS")) {
         out.push(item("", C.ma10, "MA10"));
@@ -410,12 +447,24 @@
       const bars = slice(spec.bars, n);
       const focusBars = bars.slice(-Math.min(40, bars.length));
       const coreZones = Object.values(spec.price_path || {}).filter(Boolean).flatMap(x => x.zone);
-      const channelNow = [spec.trend_lower && spec.trend_lower[1], spec.trend_upper && spec.trend_upper[1]]
-        .filter(Boolean).map(p => p[1]);
-      const focusValues = focusBars.flatMap(b => [b.low, b.high]).concat(coreZones).concat(channelNow);
+      const shapeLines = shapeBoundaryYs(spec);
+      const priceVals = nums(focusBars.flatMap(b => [b.low, b.high]).concat(coreZones));
+      const nativeMin = Math.min(...priceVals);
+      const nativeMax = Math.max(...priceVals);
+      const atr = focusBars[focusBars.length - 1]?.atr || (nativeMax - nativeMin) * 0.12;
+      const atrPad = atr * 0.5;
+      const refLevels = [];
+      if (layerOn(key, "ref")) {
+        refLevels.push(...shapeLines);
+        if (spec.invalid_trend != null) refLevels.push(+spec.invalid_trend);
+        refLevels.push(...railPrices(spec.trend_lower), ...railPrices(spec.trend_upper));
+      }
+      // Keep nearby invalidation / channel rails in frame; far levels get an edge caption instead of crushing the scale.
+      const cap = Math.max(4 * atr, (nativeMax - nativeMin) * 0.75);
+      const nearbyRef = nums(refLevels).filter(y => y >= nativeMin - cap && y <= nativeMax + cap);
+      const focusValues = priceVals.concat(nearbyRef);
       const focusMin = Math.min(...focusValues);
       const focusMax = Math.max(...focusValues);
-      const atrPad = (focusBars[focusBars.length - 1]?.atr || (focusMax - focusMin) * 0.12) * 0.5;
       const priceMin = focusMin - atrPad;
       const priceMax = focusMax + atrPad;
       const dates = bars.map(b => b.time);
@@ -453,8 +502,8 @@
       const showCh = layerOn(key, "ref");
       const showMaS = layerOn(key, "maS");
       const showMaL = layerOn(key, "maL");
-      const inView = (y) => y >= priceMin && y <= priceMax;
       const markLine = [];
+      const offscreen = [];
       const bandData = [];
       if (showBand) {
         if (spec.support_near) bandData.push(area(spec.support_near[0], spec.support_near[1], C.bandS, "近撑", "#8a1f16", "insideLeft"));
@@ -469,54 +518,45 @@
         }
       }
       const patName = spec.pattern_label || spec.pattern || "";
-      const shapeLines = [];
-      if (spec.shape_boundary_type === "two_sided") {
-        if (spec.shape_boundary_lower != null) shapeLines.push(spec.shape_boundary_lower);
-        if (spec.shape_boundary_upper != null) shapeLines.push(spec.shape_boundary_upper);
-      } else if (spec.invalid_near != null) {
-        shapeLines.push(spec.invalid_near);
-      } else if (spec.shape_boundary_lower != null) {
-        shapeLines.push(spec.shape_boundary_lower);
-      } else if (spec.shape_boundary_upper != null) {
-        shapeLines.push(spec.shape_boundary_upper);
-      }
-      if (showInv) {
-        shapeLines.filter(inView).forEach(y => {
+      const pushHLine = (name, y, color, width, tip) => {
+        if (y == null || Number.isNaN(+y)) return;
+        y = +y;
+        if (y >= priceMin && y <= priceMax) {
           markLine.push({
-            name: "形态边界",
+            name,
             yAxis: y,
-            label: { formatter: "形态边界", position: "insideEnd", color: C.invN, fontSize: 10 },
-            lineStyle: { color: C.invN, width: 1, type: "dashed" },
-            tooltip: { formatter: `形态边界 ${fmt(y, dec)}<br>当前形态：${patName}` }
+            label: { formatter: name, position: "insideEnd", color, fontSize: 10 },
+            lineStyle: { color, width, type: "dashed" },
+            tooltip: { formatter: tip }
           });
+        } else {
+          offscreen.push({ name, y, color, below: y < priceMin });
+        }
+      };
+      if (showInv) {
+        shapeLines.forEach(y => {
+          pushHLine("形态边界", y, C.invN, 1.3, `形态边界 ${fmt(y, dec)}<br>当前形态：${patName}`);
         });
+        if (spec.invalid_trend != null) {
+          pushHLine(
+            "方向失效", spec.invalid_trend, C.invT, 1.5,
+            `方向失效 ${fmt(spec.invalid_trend, dec)}<br>当前中期方向：${spec.bias}`
+          );
+        }
       }
-      if (showInv && inView(spec.invalid_trend)) {
-        markLine.push({
-          name: "方向失效",
-          yAxis: spec.invalid_trend,
-          label: { formatter: "方向失效", position: "insideEnd", color: C.invT, fontSize: 10 },
-          lineStyle: { color: C.invT, width: 1.3, type: "dashed" },
-          tooltip: { formatter: `方向失效 ${fmt(spec.invalid_trend, dec)}<br>当前中期方向：${spec.bias}` }
-        });
-      }
+      const railSeries = (name, rail) => ({
+        name, type: "line", xAxisIndex: 0, yAxisIndex: 0, clip: true, z: 8,
+        data: extendLine(rail[0], rail[1], dates),
+        showSymbol: false,
+        lineStyle: { color: C.ch, width: 1.8, type: "dashed" },
+        endLabel: {
+          show: true, formatter: name, color: C.ch, fontSize: 10, offset: [0, -8]
+        },
+        tooltip: { show: false }
+      });
       const trendSeries = [];
-      if (showCh && spec.trend_lower) {
-        trendSeries.push({
-          name: "通道下沿", type: "line", xAxisIndex: 0, yAxisIndex: 0, clip: false, z: 8,
-          data: extendLine(spec.trend_lower[0], spec.trend_lower[1], dates),
-          showSymbol: false, lineStyle: { color: C.ch, width: 1.8, type: "dashed" },
-          tooltip: { show: false }
-        });
-      }
-      if (showCh && spec.trend_upper) {
-        trendSeries.push({
-          name: "通道上沿", type: "line", xAxisIndex: 0, yAxisIndex: 0, clip: false, z: 8,
-          data: extendLine(spec.trend_upper[0], spec.trend_upper[1], dates),
-          showSymbol: false, lineStyle: { color: C.ch, width: 1.8, type: "dashed" },
-          tooltip: { show: false }
-        });
-      }
+      if (showCh && spec.trend_lower) trendSeries.push(railSeries("通道下沿", spec.trend_lower));
+      if (showCh && spec.trend_upper) trendSeries.push(railSeries("通道上沿", spec.trend_upper));
 
       const el = document.getElementById("ch-" + key);
       if (charts[key]) charts[key].dispose();
@@ -559,7 +599,21 @@
         graphic: [
           { type: "text", left: plotLeft + 4, top: gMacd.top + 2, style: { text: "MACD", fill: "#6d6454", fontSize: 11, fontFamily: "IBM Plex Mono, monospace" } },
           { type: "text", left: plotLeft + 4, top: gVol.top + 2, style: { text: "成交量", fill: "#6d6454", fontSize: 11, fontFamily: "IBM Plex Mono, monospace" } },
-          { type: "text", left: plotLeft + 4, top: gOi.top + 2, style: { text: "持仓量", fill: "#6d6454", fontSize: 11, fontFamily: "IBM Plex Mono, monospace" } }
+          { type: "text", left: plotLeft + 4, top: gOi.top + 2, style: { text: "持仓量", fill: "#6d6454", fontSize: 11, fontFamily: "IBM Plex Mono, monospace" } },
+          ...offscreen.map((item, i) => ({
+            type: "text",
+            left: plotLeft + 8,
+            top: item.below
+              ? gPrice.top + gPrice.height - 16 - i * 14
+              : gPrice.top + 4 + i * 14,
+            style: {
+              text: `${item.name} ${fmt(item.y, dec)} ${item.below ? "↓" : "↑"}`,
+              fill: item.color,
+              fontSize: 11,
+              fontFamily: "IBM Plex Mono, monospace",
+              fontWeight: 600
+            }
+          }))
         ],
         grid: [gPrice, gMacd, gVol, gOi],
         xAxis: [
@@ -685,7 +739,15 @@
       const prev = arr[i + 1];
       const blocks = ["T", "TL"].map(key => {
         const lines = histLines(prev && prev[key], h[key], key);
-        return lines.length ? `<div><div class="d">${md(h.asof)} ${key}</div>${lines.join("<br>")}</div>` : "";
+        if (!lines.length) return "";
+        const recal = h[key] && h[key].state_change_reason === "roll_recalibration";
+        const oldContract = prev && prev[key] && prev[key].analysis_contract;
+        const newContract = h[key] && h[key].analysis_contract;
+        const contractText = oldContract || newContract
+          ? `（${oldContract || "原序列"} → ${newContract || "未知合约"}）`
+          : "";
+        const reason = recal ? ` · 换月重估${contractText}` : " · 市场事件";
+        return `<div><div class="d">${md(h.asof)} ${key}${reason}</div>${lines.join("<br>")}</div>`;
       }).filter(Boolean);
       if (!blocks.length) return;
       const el = document.createElement("div");
