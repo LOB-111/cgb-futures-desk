@@ -61,6 +61,7 @@
     .fval { font-size: 16px; line-height: 1.35; font-weight: 700; }
     .pwindow { display: block; margin-top: 2px; color: #6d6454; font-size: 11px; font-weight: 500; line-height: 1.45; }
     .shape-summary-status { margin-top: 4px; }
+    .transition-summary { color: #8a5a22; }
     .fzone { font-family: "IBM Plex Mono", monospace; font-size: 13px; color: #8a5a22; margin-top: 4px; font-weight: 500; }
     .block { margin: 0 0 16px; }
     .block-k {
@@ -218,6 +219,9 @@
       if (!b || !b.trigger) return "";
       return `<div class="fbound" title="${(b.tooltip || "").replace(/"/g, "&quot;")}"><span class="ftrig">${b.trigger}</span><span class="fpx">${b.price || ""}</span></div>`;
     }
+    function transitionLine(summary) {
+      return summary ? `<div class="pwindow transition-summary">${summary}</div>` : "";
+    }
     function confirmBlock(spec) {
       const v = spec.indicator_verdict || {};
       const vol = spec.volatility || {};
@@ -257,22 +261,26 @@
             <div>
               <div class="flab">中期方向</div>
               <div class="fval dir ${T.direction || ""}">${spec.bias}${spec.direction_status && spec.direction_status !== "完整" ? `<span class="pwindow">${spec.direction_status}</span>` : ""}${spec.direction_phase === "待重建" ? `<span class="pwindow">待重建</span>` : ""}${spec.direction_progress ? `<span class="pwindow">${spec.direction_progress}</span>` : ""}</div>
+              ${transitionLine(spec.direction_transition_summary)}
               ${boundLine(B.direction)}
             </div>
             <div>
               <div class="flab">运行形态</div>
               <div class="fval pattern ${T.pattern || ""}">${(spec.display_summary || {}).running_pattern || "结构不清晰"}</div>
               ${(spec.display_summary || {}).status_line ? `<div class="pwindow shape-summary-status">${spec.display_summary.status_line}</div>` : ""}
+              ${transitionLine(spec.shape_transition_summary)}
               <div class="fbound">${(spec.display_summary || {}).boundary_line || "形态边界 —"}</div>
             </div>
             <div>
               <div class="flab">行情阶段</div>
               <div class="fval stage ${T.stage || ""}">${spec.stage_label || ""}</div>
+              ${transitionLine(spec.stage_transition_summary)}
               ${boundLine(B.stage)}
             </div>
             <div class="ffocus">
               <div class="flab">当前焦点</div>
               <div class="fval ${T.focus || "gold"}">${focus.label || "等待关键区域测试"}</div>
+              ${transitionLine(spec.focus_transition_summary)}
               ${boundLine(B.focus)}
             </div>
           </div>

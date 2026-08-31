@@ -72,6 +72,7 @@
     },
     "T": {
       "bias": "偏多",
+      "direction_transition_summary": null,
       "direction_progress": null,
       "invalid_near": null,
       "pattern": "结构不清晰",
@@ -81,10 +82,13 @@
         "status_line": null,
         "boundary_line": "形态边界 —"
       },
+      "shape_transition_summary": "上升通道正式退出｜近3日2次有效跌破形态边界；重扫60/50/40日未识别新形态",
       "pattern_window": null,
       "channel_quality": null,
       "stage": "趋势回调",
+      "stage_transition_summary": null,
       "focus": "原结构支撑确认跌破",
+      "focus_transition_summary": null,
       "indicators": {
         "MACD": "弱顶背离·失效",
         "KDJ": "中性",
@@ -99,6 +103,7 @@
     },
     "TL": {
       "bias": "偏多",
+      "direction_transition_summary": null,
       "direction_progress": null,
       "invalid_near": null,
       "pattern": "结构不清晰",
@@ -108,10 +113,13 @@
         "status_line": null,
         "boundary_line": "形态边界 —"
       },
+      "shape_transition_summary": "上升通道正式退出｜近3日2次有效跌破形态边界；重扫60/50/40日未识别新形态",
       "pattern_window": null,
       "channel_quality": null,
       "stage": "趋势回调",
+      "stage_transition_summary": null,
       "focus": "原结构支撑确认跌破",
+      "focus_transition_summary": null,
       "indicators": {
         "MACD": "明确顶背离·失效",
         "KDJ": "中性",
