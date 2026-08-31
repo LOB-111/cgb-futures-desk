@@ -59,7 +59,8 @@
     }
     .flab { font-size: 11px; color: #5c5648; letter-spacing: .12em; margin-bottom: 6px; }
     .fval { font-size: 16px; line-height: 1.35; font-weight: 700; }
-    .pwindow { display: block; margin-top: 2px; color: #6d6454; font-size: 11px; font-weight: 500; }
+    .pwindow { display: block; margin-top: 2px; color: #6d6454; font-size: 11px; font-weight: 500; line-height: 1.45; }
+    .shape-summary-status { margin-top: 4px; }
     .fzone { font-family: "IBM Plex Mono", monospace; font-size: 13px; color: #8a5a22; margin-top: 4px; font-weight: 500; }
     .block { margin: 0 0 16px; }
     .block-k {
@@ -210,25 +211,6 @@
         <div class="pa">${item.action}</div>
       </div>`;
     }
-    function patternText(spec) {
-      return spec.pattern_label || PATTERN_LABELS[spec.pattern] || spec.pattern;
-    }
-    function channelQualityText(spec) {
-      if (!String(spec.pattern_label || spec.pattern || "").includes("通道")) return "";
-      return {"低":"边界较松", "不合格":"边界较松"}[spec.channel_quality] || "";
-    }
-    function shapeRiskText(spec) {
-      return ["推进减弱", "显著承压", "失效待确认", "换月重估", "待重构"].includes(spec.shape_status)
-        ? spec.shape_status : "";
-    }
-    function secondaryStructureTag(spec) {
-      const item = spec.secondary_structure;
-      if (!item || !item.type || item.active === false || item.status === "失效") return "";
-      const explanation = item.type === "双顶"
-        ? "两个相近重要高点之间出现明显回落；确认表示收盘已有效跌破中间低点（颈线）。"
-        : "两个相近重要低点之间出现明显反弹；确认表示收盘已有效突破中间高点（颈线）。";
-      return `<span class="pwindow" title="${explanation}">${item.type}${item.status || ""}</span>`;
-    }
     function tones(spec) {
       return spec.layer_tones || {};
     }
@@ -279,8 +261,9 @@
             </div>
             <div>
               <div class="flab">运行形态</div>
-              <div class="fval pattern ${T.pattern || ""}">${patternText(spec)}${channelQualityText(spec) ? `<span class="pwindow">${channelQualityText(spec)}</span>` : ""}${shapeRiskText(spec) ? `<span class="pwindow">${shapeRiskText(spec)}</span>` : ""}${secondaryStructureTag(spec)}</div>
-              ${boundLine(B.pattern)}
+              <div class="fval pattern ${T.pattern || ""}">${(spec.display_summary || {}).running_pattern || "结构不清晰"}</div>
+              ${(spec.display_summary || {}).status_line ? `<div class="pwindow shape-summary-status">${spec.display_summary.status_line}</div>` : ""}
+              <div class="fbound">${(spec.display_summary || {}).boundary_line || "形态边界 —"}</div>
             </div>
             <div>
               <div class="flab">行情阶段</div>
@@ -486,7 +469,7 @@
             position: side || "insideLeft",
             distance: 6,
             color: labelColor || "#3d382c",
-            fontSize: 11,
+            fontSize: 10,
             fontFamily: "IBM Plex Mono, monospace"
           }
         },
@@ -518,17 +501,19 @@
         }
       }
       const patName = spec.pattern_label || spec.pattern || "";
-      const pushHLine = (name, y, color, width, tip) => {
+      const mid = zone => zone && zone.length === 2 ? (+zone[0] + +zone[1]) / 2 : null;
+      const refShort = (side, label) => {
+        if (/待确认|进入观察|首次/.test(label || "")) return `${side}·待确认`;
+        if (/失败/.test(label || "")) return `${side}·失败`;
+        if (/已测试/.test(label || "")) return `${side}·已测试`;
+        return side;
+      };
+      const candidates = [];
+      const queueLine = (name, y, color, width, tip, priority) => {
         if (y == null || Number.isNaN(+y)) return;
         y = +y;
         if (y >= priceMin && y <= priceMax) {
-          markLine.push({
-            name,
-            yAxis: y,
-            label: { formatter: name, position: "insideEnd", color, fontSize: 10 },
-            lineStyle: { color, width, type: "dashed" },
-            tooltip: { formatter: tip }
-          });
+          candidates.push({ name, y, color, width, tip, priority });
         } else {
           offscreen.push({ name, y, color, below: y < priceMin });
         }
@@ -539,29 +524,56 @@
         const refS = refs.support_reference;
         const refR = refs.resistance_reference;
         if (refS && !same(refS.zone, spec.support_far)) {
-          refS.zone.forEach(y => pushHLine(`原结构支撑·${refS.label || "参考"}`, y, C.structS, refS.displaced ? 0.8 : 1.15, "原结构支撑仅用于阶段跌破确认，不作为当前下行路径。"));
+          queueLine(refShort("原撑", refS.label), mid(refS.zone), C.structS, refS.displaced ? 0.8 : 1.15, "原结构支撑仅用于阶段跌破确认，不作为当前下行路径。", 1);
         }
         if (refR && !same(refR.zone, spec.resist_far)) {
-          refR.zone.forEach(y => pushHLine(`原结构压力·${refR.label || "参考"}`, y, C.structR, refR.displaced ? 0.8 : 1.15, "原结构压力仅用于阶段突破确认，不作为当前上行路径。"));
+          queueLine(refShort("原压", refR.label), mid(refR.zone), C.structR, refR.displaced ? 0.8 : 1.15, "原结构压力仅用于阶段突破确认，不作为当前上行路径。", 1);
         }
         shapeLines.forEach(y => {
-          pushHLine("形态边界", y, C.invN, 1.3, `形态边界 ${fmt(y, dec)}<br>当前形态：${patName}`);
+          queueLine("形态边界", y, C.invN, 1.3, `形态边界 ${fmt(y, dec)}<br>当前形态：${patName}`, 3);
         });
         if (spec.invalid_trend != null) {
-          pushHLine(
+          queueLine(
             "方向失效", spec.invalid_trend, C.invT, 1.5,
-            `方向失效 ${fmt(spec.invalid_trend, dec)}<br>当前中期方向：${spec.bias}`
+            `方向失效 ${fmt(spec.invalid_trend, dec)}<br>当前中期方向：${spec.bias}`, 3
           );
         }
       }
+      const minGap = Math.max(atr * 0.45, (priceMax - priceMin) * 0.055);
+      const placed = [];
+      candidates.slice().sort((a, b) => b.priority - a.priority || b.y - a.y).forEach(item => {
+        const clash = placed.find(k => Math.abs(k.y - item.y) < minGap);
+        if (clash) {
+          if (item.priority < clash.priority) return;
+          if (item.priority === clash.priority && Math.abs(clash.y - item.y) < minGap * 0.5) return;
+          item.position = item.y >= clash.y ? "insideEndTop" : "insideEndBottom";
+          clash.position = item.y >= clash.y ? "insideEndBottom" : "insideEndTop";
+        }
+        item.position = item.position || "insideEnd";
+        placed.push(item);
+      });
+      placed.forEach(item => {
+        markLine.push({
+          name: item.name,
+          yAxis: item.y,
+          label: {
+            formatter: item.name,
+            position: item.position || "insideEnd",
+            color: item.color,
+            fontSize: 10,
+            distance: 4
+          },
+          lineStyle: { color: item.color, width: item.width, type: "dashed" },
+          tooltip: { formatter: item.tip }
+        });
+      });
       const railSeries = (name, rail) => ({
         name, type: "line", xAxisIndex: 0, yAxisIndex: 0, clip: true, z: 8,
         data: extendLine(rail[0], rail[1], dates),
         showSymbol: false,
         lineStyle: { color: C.ch, width: 1.8, type: "dashed" },
-        endLabel: {
-          show: true, formatter: name, color: C.ch, fontSize: 10, offset: [0, -8]
-        },
+        endLabel: { show: false },
+        label: { show: false },
         tooltip: { show: false }
       });
       const trendSeries = [];
@@ -572,7 +584,7 @@
       if (charts[key]) charts[key].dispose();
       const chart = echarts.init(el, null, { renderer: "canvas" });
       const plotLeft = 68;
-      const plotRight = 16;
+      const plotRight = 52;
       const gPrice = { left: plotLeft, right: plotRight, top: 20, height: 300, containLabel: false };
       const gMacd = { left: plotLeft, right: plotRight, top: 360, height: 90, containLabel: false };
       const gVol = { left: plotLeft, right: plotRight, top: 472, height: 70, containLabel: false };
