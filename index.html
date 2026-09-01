@@ -204,12 +204,13 @@
     function cell(item, horizon, role, d, focusZone) {
       if (!item) return `<div class="pathcell empty">${horizon}｜暂无${role}</div>`;
       role = (item.roles && item.roles[0]) || role;
+      const source = { daily: "日线", "15m": "15分钟", "daily+15m": "日线+15分钟共振" }[item.source_tag] || "日线";
       const side = /支撑/.test(role) ? "sup" : "res";
       const focus = sameZone(item.zone, focusZone) ? " focus" : "";
       return `<div class="pathcell ${side}${focus}">
         <div class="ph"><span class="htag">${horizon}</span><span class="role">${role}</span></div>
         <div class="pz">${rng(item.zone, d)}</div>
-        <div class="pa">${item.action}</div>
+        <div class="pa">${source}${item.action ? "｜" + item.action : ""}</div>
       </div>`;
     }
     function tones(spec) {
@@ -221,6 +222,30 @@
     }
     function transitionLine(summary) {
       return summary ? `<div class="pwindow transition-summary">${summary}</div>` : "";
+    }
+    function keyTestLine(spec) {
+      const tests = (spec.key_level_tests || []).filter(x => x.test_state);
+      if (!tests.length) return "";
+      const rank = { false_break: 0, break_extension: 1, retest: 2, repeated_test: 3, initial_reaction: 4, testing: 5, approaching: 6 };
+      const x = tests.slice().sort((a, b) => (rank[a.test_state] ?? 9) - (rank[b.test_state] ?? 9))[0];
+      const support = /support/.test(x.role || "");
+      const role = (x.role || "").replace(/_/g, " ")
+        .replace("structural support", "结构支撑").replace("structural resistance", "结构压力")
+        .replace("daily near support", "近端支撑").replace("daily near resistance", "近端压力")
+        .replace("shape boundary support", "形态边界").replace("shape boundary resistance", "形态边界")
+        .replace("direction support", "方向边界").replace("direction resistance", "方向边界");
+      const text = {
+        false_break: `15分钟${support ? "跌破后快速收回" : "突破后快速回落"}`,
+        break_extension: `15分钟${support ? "下破延续" : "上破延续"}`,
+        retest: `15分钟${support ? "回抽测试，暂未重新站回" : "回踩测试，暂未重新跌回"}`,
+        repeated_test: `15分钟第${x.test_count}次测试`,
+        initial_reaction: `15分钟测试后${support ? "初步承接" : "初步承压"}`,
+        testing: "15分钟正在测试",
+        approaching: "15分钟接近测试"
+      }[x.test_state] || "";
+      const quality = x.reaction_quality === "weakening" ? `｜${support ? "承接减弱" : "压制减弱"}`
+        : x.reaction_quality === "strengthening" ? `｜${support ? "承接增强" : "压制增强"}` : "";
+      return text ? `<div class="pwindow">${role}｜${text}${quality}</div>` : "";
     }
     function confirmBlock(spec) {
       const v = spec.indicator_verdict || {};
@@ -280,6 +305,7 @@
             <div class="ffocus">
               <div class="flab">当前焦点</div>
               <div class="fval ${T.focus || "gold"}">${focus.label || "等待关键区域测试"}</div>
+              ${keyTestLine(spec)}
               ${transitionLine(spec.focus_transition_summary)}
               ${boundLine(B.focus)}
             </div>
