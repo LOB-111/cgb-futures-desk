@@ -89,6 +89,7 @@
     .role { font-size: 12px; }
     .pz { font-family: "IBM Plex Mono", monospace; font-size: 16px; margin: 2px 0 6px; }
     .pa { font-size: 13px; color: #3d382c; }
+    .struct-state { margin: 2px 0 12px; padding: 8px 10px; border-left: 3px solid #b88732; background: rgba(215,160,75,.08); color: #5d513b; font-size: 12px; line-height: 1.55; }
     .bull { color: #b3261e; } .bear { color: #24724d; } .neutral { color: #8a8270; } .gold { color: #b88732; }
     .confirm { margin: 0 0 14px; }
     .confirm .row {
@@ -202,7 +203,7 @@
       return a && b && Number(a[0]) === Number(b[0]) && Number(a[1]) === Number(b[1]);
     }
     function cell(item, horizon, role, d, focusZone) {
-      if (!item) return `<div class="pathcell empty">${horizon}｜暂无${role}</div>`;
+      if (!item) return `<div class="pathcell empty">${horizon}｜${horizon === "结构路径" ? "暂无已确认结构位置" : "暂无" + role}</div>`;
       role = (item.roles && item.roles[0]) || role;
       const source = { daily: "日线", "15m": "15分钟", "daily+15m": "日线+15分钟共振" }[item.source_tag] || "日线";
       const side = /支撑/.test(role) ? "sup" : "res";
@@ -212,6 +213,31 @@
         <div class="pz">${rng(item.zone, d)}</div>
         <div class="pa">${source}${item.action ? "｜" + item.action : ""}</div>
       </div>`;
+    }
+    function pathCells(near, structural, nearHorizon, nearRole, d, focusZone) {
+      if (near && structural && sameZone(near.zone, structural.zone)) {
+        const role = (near.roles && near.roles[0]) || nearRole;
+        return cell(
+          { ...near, roles: [role], action: "兼具近端位置 + 当前结构路径" },
+          "关键", role, d, focusZone
+        );
+      }
+      return cell(near, nearHorizon, nearRole, d, focusZone)
+        + cell(structural, "结构路径", /支撑/.test(nearRole) ? "结构支撑" : "结构压力", d, focusZone);
+    }
+    function structureStateLine(spec, d) {
+      const events = spec.structural_break_events || [];
+      const event = events.find(x => x.active);
+      if (!event) return "";
+      const isSupport = event.direction === "down";
+      const references = spec.structural_reference || {};
+      const paths = spec.structural_path_current || {};
+      const reference = isSupport ? references.support : references.resistance;
+      const path = isSupport ? paths.support : paths.resistance;
+      const action = isSupport ? "确认跌破" : "确认突破";
+      const former = reference && reference.zone ? `原结构${isSupport ? "支撑" : "压力"} ${rng(reference.zone, d)} ${action}` : `原结构${isSupport ? "支撑" : "压力"}${action}`;
+      const next = path && path.zone ? `当前${isSupport ? "下行" : "上行"}路径：${rng(path.zone, d)}` : `${isSupport ? "下方" : "上方"}暂无已确认结构位置`;
+      return `<div class="struct-state">状态切换｜${former}；${next}</div>`;
     }
     function tones(spec) {
       return spec.layer_tones || {};
@@ -225,7 +251,16 @@
     }
     function keyTestLine(spec) {
       const tests = (spec.key_level_tests || []).filter(x => x.test_state);
-      if (!tests.length) return "";
+      if (!tests.length) {
+        const reason = spec.intraday_unavailable_reason || spec.key_level_tests_reason;
+        const message = {
+          missing_prior_snapshot: "15分钟执行快照待建立",
+          insufficient_intraday_history: "15分钟历史样本不足",
+          contract_mismatch: "分钟合约与执行快照不一致",
+          data_incomplete: "当日分钟数据不完整"
+        }[reason];
+        return message ? `<div class="pwindow">${message}</div>` : "";
+      }
       const rank = { false_break: 0, break_extension: 1, retest: 2, repeated_test: 3, initial_reaction: 4, testing: 5, approaching: 6 };
       const x = tests.slice().sort((a, b) => (rank[a.test_state] ?? 9) - (rank[b.test_state] ?? 9))[0];
       const support = /support/.test(x.role || "");
@@ -274,6 +309,7 @@
       const status = spec.indicator_status || {};
       const chips = Object.entries(status).map(([k, v]) => `<span class="${indTone(k, v)}">${k} ${v}</span>`).join('<span class="neutral"> ｜ </span>');
       const path = spec.price_path || {};
+      const structuralPath = spec.structural_path_current || {};
       const B = spec.bounds || {};
       return `
         <div class="head">
@@ -313,15 +349,14 @@
           <div class="pathgrid">
             <section class="pathcol">
               <b>↓ 下行路径</b>
-              ${cell(path.support_near, "短线", "近端支撑", d, focus.zone)}
-              ${cell(path.support_structure, "结构", "结构支撑", d, focus.zone)}
+              ${pathCells(path.support_near, structuralPath.support || path.support_structure, "短线", "近端支撑", d, focus.zone)}
             </section>
             <section class="pathcol">
               <b>↑ 上行路径</b>
-              ${cell(path.resistance_near, "短线", "近端压力", d, focus.zone)}
-              ${cell(path.resistance_structure, "结构", "结构压力", d, focus.zone)}
+              ${pathCells(path.resistance_near, structuralPath.resistance || path.resistance_structure, "短线", "近端压力", d, focus.zone)}
             </section>
           </div>
+          ${structureStateLine(spec, d)}
         </div>
         <div class="block">
           <div class="block-k">技术指标｜辅助</div>

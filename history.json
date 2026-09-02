@@ -24,8 +24,8 @@
       "channel_quality": null,
       "stage": "趋势回调",
       "stage_transition_summary": null,
-      "focus": "原结构支撑确认跌破",
-      "focus_transition_summary": null,
+      "focus": "15分钟测试短线支撑后初步止跌",
+      "focus_transition_summary": "焦点切换｜价格由下一结构支撑转至短线支撑测试范围",
       "indicators": {
         "MACD": "弱顶背离·失效",
         "KDJ": "中性",
@@ -66,6 +66,77 @@
       "verdict": "无明显修正",
       "volatility": "明显收缩",
       "close": 115.94,
+      "state_change_reason": "market_event",
+      "analysis_contract": "TL2612.CFE"
+    }
+  },
+  {
+    "rules_version": "v2.12-15m-short-layer-20260901",
+    "asof": "2026-09-01",
+    "title": "T 转弱观察，TL 趋势回调",
+    "current_contract": {
+      "T": "T2612.CFE",
+      "TL": "TL2612.CFE"
+    },
+    "T": {
+      "bias": "偏多",
+      "direction_transition_summary": null,
+      "direction_progress": null,
+      "invalid_near": null,
+      "pattern": "结构不清晰",
+      "pattern_label": "结构不清晰",
+      "display_summary": {
+        "running_pattern": "结构不清晰",
+        "status_line": null,
+        "boundary_line": "形态边界 —"
+      },
+      "shape_transition_summary": "上升通道正式退出｜近3日2次有效跌破形态边界；重扫60/50/40日未识别新形态",
+      "pattern_window": null,
+      "channel_quality": null,
+      "stage": "转弱观察",
+      "stage_transition_summary": "阶段降级｜结构支撑近3日2次有效跌破",
+      "focus": "15分钟测试短线支撑后初步止跌",
+      "focus_transition_summary": null,
+      "indicators": {
+        "MACD": "弱顶背离·失效",
+        "KDJ": "中性",
+        "RSI": "中性",
+        "BOLL": "轨道内部·波动正常"
+      },
+      "verdict": "无明显修正",
+      "volatility": "正常",
+      "close": 109.4,
+      "state_change_reason": "market_event",
+      "analysis_contract": "T2612.CFE"
+    },
+    "TL": {
+      "bias": "偏多",
+      "direction_transition_summary": null,
+      "direction_progress": null,
+      "invalid_near": null,
+      "pattern": "结构不清晰",
+      "pattern_label": "结构不清晰",
+      "display_summary": {
+        "running_pattern": "结构不清晰",
+        "status_line": null,
+        "boundary_line": "形态边界 —"
+      },
+      "shape_transition_summary": "上升通道正式退出｜近3日2次有效跌破形态边界；重扫60/50/40日未识别新形态",
+      "pattern_window": null,
+      "channel_quality": null,
+      "stage": "趋势回调",
+      "stage_transition_summary": null,
+      "focus": "突破后回踩",
+      "focus_transition_summary": "焦点切换｜原结构支撑确认跌破转为突破后回踩",
+      "indicators": {
+        "MACD": "明确顶背离·失效",
+        "KDJ": "中性",
+        "RSI": "中性",
+        "BOLL": "轨道内部·明显收缩"
+      },
+      "verdict": "无明显修正",
+      "volatility": "明显收缩",
+      "close": 116.13,
       "state_change_reason": "market_event",
       "analysis_contract": "TL2612.CFE"
     }
