@@ -57,11 +57,23 @@
       display: grid; grid-template-columns: .9fr 1.05fr 1.25fr 1.35fr;
       gap: 8px 14px; margin: 14px 0 12px; align-items: start;
     }
+    .four .state-changed {
+      position: relative; margin: -4px -6px; padding: 8px 8px 7px;
+      border: 1px solid rgba(184,135,50,.62); background: rgba(215,160,75,.075);
+      box-shadow: inset 0 3px 0 #b88732;
+    }
+    .four .state-changed::after {
+      content: attr(data-change-date) "变化"; position: absolute; top: 7px; right: 7px;
+      font-family: "IBM Plex Mono", monospace; font-size: 9px; letter-spacing: .12em;
+      color: #765116; border: 1px solid rgba(184,135,50,.62); padding: 1px 4px;
+      background: rgba(241,230,207,.82);
+    }
     .flab { font-size: 11px; color: #5c5648; letter-spacing: .12em; margin-bottom: 6px; }
     .fval { font-size: 16px; line-height: 1.35; font-weight: 700; }
     .pwindow { display: block; margin-top: 2px; color: #6d6454; font-size: 11px; font-weight: 500; line-height: 1.45; }
     .shape-summary-status { margin-top: 4px; }
     .transition-summary { color: #8a5a22; }
+    .indicator-event-notice { margin-top: 5px; color: #8a5a22; font-size: 11px; line-height: 1.45; }
     .fzone { font-family: "IBM Plex Mono", monospace; font-size: 13px; color: #8a5a22; margin-top: 4px; font-weight: 500; }
     .block { margin: 0 0 16px; }
     .block-k {
@@ -78,6 +90,15 @@
     .pathcell.sup { background: rgba(196,60,44,.04); }
     .pathcell.res { background: rgba(47,107,79,.04); }
     .pathcell.focus { outline: 2px solid #b88732; background: rgba(215,160,75,.12); }
+    .pathcell.attention {
+      border-color: rgba(184,135,50,.78); border-left: 4px solid #b88732;
+      padding-left: 6px; box-shadow: inset 0 0 0 1px rgba(184,135,50,.16);
+    }
+    .pathcell.attention .pz { font-weight: 700; }
+    .attention-tag {
+      margin-left: auto; font-family: "IBM Plex Mono", monospace; font-size: 9px;
+      letter-spacing: .1em; color: #765116; border: 1px solid rgba(184,135,50,.62); padding: 1px 4px;
+    }
     .pathcell.empty { color: var(--mute); font-size: 12px; }
     .ph { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
     .htag {
@@ -202,17 +223,35 @@
     function sameZone(a, b) {
       return a && b && Number(a[0]) === Number(b[0]) && Number(a[1]) === Number(b[1]);
     }
-    function cell(item, horizon, role, d, focusZone) {
+    function cell(item, horizon, role, d, focusZone, attention) {
       if (!item) return `<div class="pathcell empty">${horizon}｜${horizon === "结构路径" ? "暂无已确认结构位置" : "暂无" + role}</div>`;
       role = (item.roles && item.roles[0]) || role;
-      const source = { daily: "日线", "15m": "15分钟", "daily+15m": "日线+15分钟共振" }[item.source_tag] || "日线";
       const side = /支撑/.test(role) ? "sup" : "res";
       const focus = sameZone(item.zone, focusZone) ? " focus" : "";
-      return `<div class="pathcell ${side}${focus}">
-        <div class="ph"><span class="htag">${horizon}</span><span class="role">${role}</span></div>
+      const watched = attention && item.display_id === attention.display_id ? " attention" : "";
+      const detail = `${item.structural_core ? "结构核心 " + rng(item.structural_core, d) : ""}${item.structural_core && item.action ? "｜" : ""}${item.action || ""}`;
+      return `<div class="pathcell ${side}${focus}${watched}">
+        <div class="ph"><span class="htag">${horizon}</span><span class="role">${role}</span>${watched ? '<span class="attention-tag">今日关注</span>' : ''}</div>
         <div class="pz">${rng(item.zone, d)}</div>
-        <div class="pa">${source}${item.action ? "｜" + item.action : ""}</div>
+        ${detail ? `<div class="pa">${detail}</div>` : ""}
       </div>`;
+    }
+    function displayPathCells(spec, side, d, focusZone) {
+      const display = spec.display_levels;
+      if (!display) throw new Error("missing display_levels");
+      const levels = display[side];
+      if (!Array.isArray(levels)) throw new Error("missing display_levels." + side);
+      return levels.map(item => cell({ ...item, roles: [item.role] }, item.horizon, item.role, d, focusZone, display.path_attention)).join("");
+    }
+    function displayNotes(spec, d) {
+      const levels = spec.display_levels;
+      if (!levels) throw new Error("missing display_levels");
+      const observation = levels.primary_observation;
+      const context = levels.intraday_context;
+      const bits = [];
+      if (observation) bits.push(`<b>主观察区</b>｜${observation.label} ${rng(observation.zone, d)}`);
+      if (context) bits.push(`<b>盘中背景</b>｜${context.type === "narrow_range" ? "15分钟夹板" : "15分钟单侧边界"} ${rng(context.zone, d)}`);
+      return bits.length ? `<div class="struct-state">${bits.join("<br>")}</div>` : "";
     }
     function pathCells(near, structural, nearHorizon, nearRole, d, focusZone) {
       if (near && structural && sameZone(near.zone, structural.zone)) {
@@ -230,10 +269,9 @@
       const event = events.find(x => x.active);
       if (!event) return "";
       const isSupport = event.direction === "down";
-      const references = spec.structural_reference || {};
-      const paths = spec.structural_path_current || {};
-      const reference = isSupport ? references.support : references.resistance;
-      const path = isSupport ? paths.support : paths.resistance;
+      const dailyPath = spec.daily_price_path || {};
+      const reference = isSupport ? dailyPath.support_reference : dailyPath.resistance_reference;
+      const path = isSupport ? dailyPath.support_structure : dailyPath.resistance_structure;
       const action = isSupport ? "确认跌破" : "确认突破";
       const former = reference && reference.zone ? `原结构${isSupport ? "支撑" : "压力"} ${rng(reference.zone, d)} ${action}` : `原结构${isSupport ? "支撑" : "压力"}${action}`;
       const next = path && path.zone ? `当前${isSupport ? "下行" : "上行"}路径：${rng(path.zone, d)}` : `${isSupport ? "下方" : "上方"}暂无已确认结构位置`;
@@ -248,6 +286,19 @@
     }
     function transitionLine(summary) {
       return summary ? `<div class="pwindow transition-summary">${summary}</div>` : "";
+    }
+    function indicatorEventNotices(spec) {
+      const notices = spec.indicator_event_notices || [];
+      return notices.length ? `<div class="indicator-event-notice">${notices.join("　")}</div>` : "";
+    }
+    function changedState(summary) {
+      return summary ? "state-changed" : "";
+    }
+    function changeDateAttr(state) {
+      const date = state && state.changed_at;
+      if (!date) return "";
+      const [month, day] = date.slice(5).split("-");
+      return ` data-change-date="${Number(month)}/${Number(day)} "`;
     }
     function keyTestLine(spec) {
       const tests = (spec.key_level_tests || []).filter(x => x.test_state);
@@ -304,12 +355,12 @@
     }
     function card(key, spec) {
       const d = key === "TL" ? 2 : 3;
-      const focus = spec.focus || {};
+      const focus = spec.display_focus;
+      if (!focus) throw new Error("missing display_focus");
+      if (!spec.display_summary) throw new Error("missing display_summary");
       const T = tones(spec);
       const status = spec.indicator_status || {};
       const chips = Object.entries(status).map(([k, v]) => `<span class="${indTone(k, v)}">${k} ${v}</span>`).join('<span class="neutral"> ｜ </span>');
-      const path = spec.price_path || {};
-      const structuralPath = spec.structural_path_current || {};
       const B = spec.bounds || {};
       return `
         <div class="head">
@@ -319,28 +370,29 @@
         <div class="block">
           <div class="block-k">价格分析｜主判断</div>
           <div class="four">
-            <div>
+            <div class="${changedState(spec.direction_transition_summary)}"${changeDateAttr(spec.direction_transition_state)}>
               <div class="flab">中期方向</div>
-              <div class="fval dir ${T.direction || ""}">${spec.bias}${spec.direction_status && spec.direction_status !== "完整" ? `<span class="pwindow">${spec.direction_status}</span>` : ""}${spec.direction_phase === "待重建" ? `<span class="pwindow">待重建</span>` : ""}${spec.direction_progress ? `<span class="pwindow">${spec.direction_progress}</span>` : ""}</div>
+              <div class="fval dir ${T.direction || ""}">${spec.bias}${spec.direction_state.direction_status && spec.direction_state.direction_status !== "完整" ? `<span class="pwindow">${spec.direction_state.direction_status}</span>` : ""}${spec.direction_state.direction_phase === "待重建" ? `<span class="pwindow">待重建</span>` : ""}${spec.direction_progress ? `<span class="pwindow">${spec.direction_progress}</span>` : ""}</div>
               ${transitionLine(spec.direction_transition_summary)}
               ${boundLine(B.direction)}
             </div>
-            <div>
+            <div class="${changedState(spec.shape_transition_summary)}"${changeDateAttr(spec.shape_transition_state)}>
               <div class="flab">运行形态</div>
-              <div class="fval pattern ${T.pattern || ""}">${(spec.display_summary || {}).running_pattern || "结构不清晰"}</div>
-              ${(spec.display_summary || {}).status_line ? `<div class="pwindow shape-summary-status">${spec.display_summary.status_line}</div>` : ""}
+              <div class="fval pattern ${T.pattern || ""}">${spec.display_summary.running_pattern}</div>
+              ${spec.display_summary.status_line ? `<div class="pwindow shape-summary-status">${spec.display_summary.status_line}</div>` : ""}
               ${transitionLine(spec.shape_transition_summary)}
-              <div class="fbound">${(spec.display_summary || {}).boundary_line || "形态边界 —"}</div>
+              <div class="fbound">${spec.display_summary.boundary_line}</div>
             </div>
-            <div>
+            <div class="${changedState(spec.stage_transition_summary)}"${changeDateAttr(spec.stage_transition_state)}>
               <div class="flab">行情阶段</div>
-              <div class="fval stage ${T.stage || ""}">${spec.stage_label || ""}</div>
+              <div class="fval stage ${T.stage || ""}">${spec.stage_label}</div>
               ${transitionLine(spec.stage_transition_summary)}
               ${boundLine(B.stage)}
             </div>
-            <div class="ffocus">
+            <div class="ffocus ${changedState(spec.focus_transition_summary)}"${changeDateAttr(spec.focus_transition_state)}>
               <div class="flab">当前焦点</div>
               <div class="fval ${T.focus || "gold"}">${focus.label || "等待关键区域测试"}</div>
+              ${focus.zone ? `<div class="fbound"><span class="fpx">${rng(focus.zone, d)}</span></div>` : ""}
               ${keyTestLine(spec)}
               ${transitionLine(spec.focus_transition_summary)}
               ${boundLine(B.focus)}
@@ -349,11 +401,11 @@
           <div class="pathgrid">
             <section class="pathcol">
               <b>↓ 下行路径</b>
-              ${pathCells(path.support_near, structuralPath.support || path.support_structure, "短线", "近端支撑", d, focus.zone)}
+              ${displayPathCells(spec, "support", d, focus.zone)}
             </section>
             <section class="pathcol">
               <b>↑ 上行路径</b>
-              ${pathCells(path.resistance_near, structuralPath.resistance || path.resistance_structure, "短线", "近端压力", d, focus.zone)}
+              ${displayPathCells(spec, "resistance", d, focus.zone)}
             </section>
           </div>
           ${structureStateLine(spec, d)}
@@ -362,6 +414,7 @@
           <div class="block-k">技术指标｜辅助</div>
           ${confirmBlock(spec)}
           <div class="evidence">指标依据　<span class="indline">${chips}</span></div>
+          ${indicatorEventNotices(spec)}
         </div>
         <div class="block">
           <div class="block-k">量仓｜辅助</div>
@@ -404,7 +457,11 @@
       bandSF: "rgba(196,60,44,.16)",
       bandRF: "rgba(47,107,79,.16)",
       structS: "rgba(196,60,44,.48)",
-      structR: "rgba(47,107,79,.48)"
+      structR: "rgba(47,107,79,.48)",
+      former: "rgba(184,135,50,.10)",
+      formerLine: "rgba(138,90,34,.72)",
+      primary: "rgba(184,135,50,.28)",
+      dense: "rgba(93,86,70,.055)"
     };
     const defaultLayers = () => ({ maS: true, maL: false, ref: true, band: true, solo: null });
     const layers = { T: defaultLayers(), TL: defaultLayers() };
@@ -463,7 +520,7 @@
         if (spec.trend_lower) out.push(item("dash", C.ch, "通道下沿"));
         if (spec.trend_upper) out.push(item("dash", C.ch, "通道上沿"));
         if (shapeBoundaryYs(spec).length) out.push(item("dash", C.invN, "形态边界"));
-        if (spec.invalid_trend != null) out.push(item("dash", C.invT, "方向失效"));
+        if ((spec.direction_state || {}).direction_boundary != null) out.push(item("dash", C.invT, "方向失效"));
       }
       if (layerOn(key, "maS")) {
         out.push(item("", C.ma10, "MA10"));
@@ -508,7 +565,7 @@
       const refLevels = [];
       if (layerOn(key, "ref")) {
         refLevels.push(...shapeLines);
-        if (spec.invalid_trend != null) refLevels.push(+spec.invalid_trend);
+        if ((spec.direction_state || {}).direction_boundary != null) refLevels.push(+((spec.direction_state || {}).direction_boundary));
         refLevels.push(...railPrices(spec.trend_lower), ...railPrices(spec.trend_upper));
       }
       // Keep nearby invalidation / channel rails in frame; far levels get an edge caption instead of crushing the scale.
@@ -544,10 +601,10 @@
         },
         { yAxis: hi }
       ]);
-      const edge = (y, color) => ({
+      const edge = (y, color, name, position, style = {}) => ({
         yAxis: y,
-        lineStyle: { color, width: 1.3, type: "solid" },
-        label: { show: false }
+        lineStyle: { color, width: style.width || 1.3, type: style.type || "solid" },
+        label: name ? { show: true, formatter: name, position: position || "insideEnd", color, fontSize: 10, distance: 4 } : { show: false }
       });
       const showInv = layerOn(key, "ref");
       const showBand = layerOn(key, "band");
@@ -558,18 +615,34 @@
       const offscreen = [];
       const bandData = [];
       if (showBand) {
-        if (spec.support_near) bandData.push(area(spec.support_near[0], spec.support_near[1], C.bandS, "近撑", "#8a1f16", "insideLeft"));
-        if (spec.support_far) {
-          bandData.push(area(spec.support_far[0], spec.support_far[1], C.bandSF, "结构撑", "#8a1f16", "insideRight"));
-          markLine.push(edge(spec.support_far[0], C.structS), edge(spec.support_far[1], C.structS));
-        }
-        if (spec.resist_near) bandData.push(area(spec.resist_near[0], spec.resist_near[1], C.bandR, "近压", "#1f4d38", "insideLeft"));
-        if (spec.resist_far) {
-          bandData.push(area(spec.resist_far[0], spec.resist_far[1], C.bandRF, "结构压", "#1f4d38", "insideRight"));
-          markLine.push(edge(spec.resist_far[0], C.structR), edge(spec.resist_far[1], C.structR));
-        }
+        const display = spec.display_levels;
+        if (!display || !display.display_paths) throw new Error("missing display_levels.display_paths");
+        const addDisplayBand = (level, color, lineColor, tag, labelColor, labelPosition) => {
+          const z = level.zone;
+          const primary = level.chart_visual_level === "primary";
+          const remote = level.chart_visual_level === "remote";
+          const reversalWatch = String(level.chart_role || "").startsWith("reversal_watch_");
+          // The price chart is for locating zones; exact numbers remain in cards and tooltips.
+          if (!remote) bandData.push(area(z[0], z[1], reversalWatch ? C.former : primary ? C.primary : color, "", labelColor, "insideLeft"));
+          const lineStyle = {
+            width: reversalWatch ? 1.0 : primary ? 2.2 : remote ? 0.8 : 1.3,
+            type: reversalWatch ? "dashed" : "solid"
+          };
+          // Zones are drawn with both borders; boundary_to_draw remains only a semantic event field.
+          const labelAtLower = level.boundary_to_draw === "lower";
+          markLine.push(edge(z[0], lineColor, level.chart_show_label && labelAtLower ? tag : null, labelPosition, lineStyle));
+          markLine.push(edge(z[1], lineColor, level.chart_show_label && !labelAtLower ? tag : null, labelPosition, lineStyle));
+        };
+        ((display.chart_visual_plan || {}).dense_clusters || []).forEach(cluster => {
+          bandData.push(area(cluster.zone[0], cluster.zone[1], C.dense, "", "#6d6454", "insideLeft"));
+        });
+        const chartPaths = display.display_paths;
+        (chartPaths.support || []).forEach((level, i) => addDisplayBand(level, C.bandS, C.structS, level.chart_label, "#8a1f16", i % 2 ? "insideEndTop" : "insideStartBottom"));
+        (chartPaths.resistance || []).forEach((level, i) => addDisplayBand(level, C.bandR, C.structR, level.chart_label, "#1f4d38", i % 2 ? "insideStartTop" : "insideEndBottom"));
+        (display.former || []).forEach(level => addDisplayBand(level, C.former, C.formerLine, level.chart_label, "#6d4b12", "insideEndTop"));
       }
-      const patName = spec.pattern_label || spec.pattern || "";
+      const patName = spec.pattern_label;
+      if (!patName) throw new Error("missing pattern_label");
       const mid = zone => zone && zone.length === 2 ? (+zone[0] + +zone[1]) / 2 : null;
       const refShort = (side, label) => {
         if (/待确认|进入观察|首次/.test(label || "")) return `${side}·待确认`;
@@ -592,19 +665,22 @@
         const same = (a, b) => a && b && +a[0] === +b[0] && +a[1] === +b[1];
         const refS = refs.support_reference;
         const refR = refs.resistance_reference;
-        if (refS && !same(refS.zone, spec.support_far)) {
+        const formerZones = ((spec.display_levels || {}).former || []).map(x => x.zone);
+        const isFormer = zone => formerZones.some(item => same(item, zone));
+        if (refS && !same(refS.zone, spec.daily_price_path?.support_structure?.zone) && !isFormer(refS.zone)) {
           queueLine(refShort("原撑", refS.label), mid(refS.zone), C.structS, refS.displaced ? 0.8 : 1.15, "原结构支撑仅用于阶段跌破确认，不作为当前下行路径。", 1);
         }
-        if (refR && !same(refR.zone, spec.resist_far)) {
+        if (refR && !same(refR.zone, spec.daily_price_path?.resistance_structure?.zone) && !isFormer(refR.zone)) {
           queueLine(refShort("原压", refR.label), mid(refR.zone), C.structR, refR.displaced ? 0.8 : 1.15, "原结构压力仅用于阶段突破确认，不作为当前上行路径。", 1);
         }
         shapeLines.forEach(y => {
           queueLine("形态边界", y, C.invN, 1.3, `形态边界 ${fmt(y, dec)}<br>当前形态：${patName}`, 3);
         });
-        if (spec.invalid_trend != null) {
+        const directionBoundary = (spec.direction_state || {}).direction_boundary;
+        if (directionBoundary != null) {
           queueLine(
-            "方向失效", spec.invalid_trend, C.invT, 1.5,
-            `方向失效 ${fmt(spec.invalid_trend, dec)}<br>当前中期方向：${spec.bias}`, 3
+            "方向失效", directionBoundary, C.invT, 1.5,
+            `方向失效 ${fmt(directionBoundary, dec)}<br>当前中期方向：${spec.bias}`, 3
           );
         }
       }
@@ -651,7 +727,7 @@
 
       const el = document.getElementById("ch-" + key);
       if (charts[key]) charts[key].dispose();
-      const chart = echarts.init(el, null, { renderer: "canvas" });
+      const chart = echarts.init(el, null, { renderer: "svg" });
       const plotLeft = 68;
       const plotRight = 52;
       const gPrice = { left: plotLeft, right: plotRight, top: 20, height: 300, containLabel: false };
@@ -807,7 +883,8 @@
       return p.length === 3 ? `${p[1]}/${p[2]}` : asof;
     }
     function layerName(spec) {
-      return spec.pattern_label || PATTERN_LABELS[spec.pattern] || spec.pattern || "";
+      if (!spec.pattern_label) throw new Error("missing pattern_label");
+      return spec.pattern_label;
     }
     function histLines(prev, cur, key) {
       if (!cur) return [];
@@ -818,7 +895,7 @@
       };
       add("中期方向", prev && prev.bias, cur.bias);
       add("运行形态", prev && layerName(prev), layerName(cur));
-      add("行情阶段", prev && (prev.stage || prev.stage_label), cur.stage || cur.stage_label);
+      add("行情阶段", prev && prev.stage_label, cur.stage_label);
       add("当前焦点", prev && prev.focus, cur.focus);
       add("辅助确认", prev && prev.verdict, cur.verdict);
       add("波动状态", prev && prev.volatility, cur.volatility);
