@@ -55,8 +55,12 @@
     .px { font-family: "Fraunces", serif; font-size: 34px; letter-spacing: -.04em; }
     .four {
       display: grid; grid-template-columns: .9fr 1.05fr 1.25fr 1.35fr;
-      gap: 8px 14px; margin: 14px 0 12px; align-items: start;
+      gap: 8px 14px; margin: 14px 0 12px; align-items: stretch;
     }
+    .four > div {
+      display: flex; flex-direction: column; min-height: 100%;
+    }
+    .four > div > .fbound:last-child { margin-top: auto; }
     .four .state-changed {
       position: relative; margin: -4px -6px; padding: 8px 8px 7px;
       border: 1px solid rgba(184,135,50,.62); background: rgba(215,160,75,.075);
@@ -110,6 +114,15 @@
     .role { font-size: 12px; }
     .pz { font-family: "IBM Plex Mono", monospace; font-size: 16px; margin: 2px 0 6px; }
     .pa { font-size: 13px; color: #3d382c; }
+    .composite {
+      margin: 2px 0 14px; padding: 10px 12px;
+      border-left: 4px solid #b88732; background: rgba(215,160,75,.10);
+    }
+    .composite.bear { border-left-color: #24724d; background: rgba(47,107,79,.08); }
+    .composite.bull { border-left-color: #b3261e; background: rgba(196,60,44,.08); }
+    .composite .fval { margin-bottom: 6px; }
+    .composite-setup, .composite-path, .composite-inv { font-size: 13px; line-height: 1.65; color: #3d382c; margin-top: 4px; }
+    .composite b { margin-right: 6px; }
     .struct-state { margin: 2px 0 12px; padding: 8px 10px; border-left: 3px solid #b88732; background: rgba(215,160,75,.08); color: #5d513b; font-size: 12px; line-height: 1.55; }
     .bull { color: #b3261e; } .bear { color: #24724d; } .neutral { color: #8a8270; } .gold { color: #b88732; }
     .confirm { margin: 0 0 14px; }
@@ -280,9 +293,10 @@
     function tones(spec) {
       return spec.layer_tones || {};
     }
-    function boundLine(b) {
+    function boundLine(b, hidePrice) {
       if (!b || !b.trigger) return "";
-      return `<div class="fbound" title="${(b.tooltip || "").replace(/"/g, "&quot;")}"><span class="ftrig">${b.trigger}</span><span class="fpx">${b.price || ""}</span></div>`;
+      const price = hidePrice ? "" : (b.price || "");
+      return `<div class="fbound" title="${(b.tooltip || "").replace(/"/g, "&quot;")}"><span class="ftrig">${b.trigger}</span>${price ? `<span class="fpx">${price}</span>` : ""}</div>`;
     }
     function transitionLine(summary) {
       return summary ? `<div class="pwindow transition-summary">${summary}</div>` : "";
@@ -300,38 +314,28 @@
       const [month, day] = date.slice(5).split("-");
       return ` data-change-date="${Number(month)}/${Number(day)} "`;
     }
-    function keyTestLine(spec) {
-      const tests = (spec.key_level_tests || []).filter(x => x.test_state);
-      if (!tests.length) {
-        const reason = spec.intraday_unavailable_reason || spec.key_level_tests_reason;
-        const message = {
-          missing_prior_snapshot: "15分钟执行快照待建立",
-          insufficient_intraday_history: "15分钟历史样本不足",
-          contract_mismatch: "分钟合约与执行快照不一致",
-          data_incomplete: "当日分钟数据不完整"
-        }[reason];
-        return message ? `<div class="pwindow">${message}</div>` : "";
-      }
-      const rank = { false_break: 0, break_extension: 1, retest: 2, repeated_test: 3, initial_reaction: 4, testing: 5, approaching: 6 };
-      const x = tests.slice().sort((a, b) => (rank[a.test_state] ?? 9) - (rank[b.test_state] ?? 9))[0];
-      const support = /support/.test(x.role || "");
-      const role = (x.role || "").replace(/_/g, " ")
-        .replace("structural support", "结构支撑").replace("structural resistance", "结构压力")
-        .replace("daily near support", "近端支撑").replace("daily near resistance", "近端压力")
-        .replace("shape boundary support", "形态边界").replace("shape boundary resistance", "形态边界")
-        .replace("direction support", "方向边界").replace("direction resistance", "方向边界");
-      const text = {
-        false_break: `15分钟${support ? "跌破后快速收回" : "突破后快速回落"}`,
-        break_extension: `15分钟${support ? "下破延续" : "上破延续"}`,
-        retest: `15分钟${support ? "回抽测试，暂未重新站回" : "回踩测试，暂未重新跌回"}`,
-        repeated_test: `15分钟第${x.test_count}次测试`,
-        initial_reaction: `15分钟测试后${support ? "初步承接" : "初步承压"}`,
-        testing: "15分钟正在测试",
-        approaching: "15分钟接近测试"
-      }[x.test_state] || "";
-      const quality = x.reaction_quality === "weakening" ? `｜${support ? "承接减弱" : "压制减弱"}`
-        : x.reaction_quality === "strengthening" ? `｜${support ? "承接增强" : "压制增强"}` : "";
-      return text ? `<div class="pwindow">${role}｜${text}${quality}</div>` : "";
+    function minuteNote(spec) {
+      if (spec.minute_validation_note) return `<div class="pwindow">${spec.minute_validation_note}</div>`;
+      const reason = spec.intraday_unavailable_reason || spec.key_level_tests_reason;
+      const message = {
+        missing_prior_snapshot: "盘中执行快照待建立",
+        insufficient_intraday_history: "盘中历史样本不足",
+        contract_mismatch: "分钟合约与执行快照不一致",
+        data_incomplete: "当日分钟数据不完整"
+      }[reason];
+      return message ? `<div class="pwindow">${message}</div>` : "";
+    }
+    function compositeBlock(spec) {
+      const j = spec.composite_judgement;
+      if (!j || !j.headline) return "";
+      const tone = j.tone || "gold";
+      return `<div class="composite ${tone}">
+        <div class="flab">综合判断</div>
+        <div class="fval ${tone}">${j.headline}</div>
+        ${j.setup ? `<div class="composite-setup">${j.setup}</div>` : ""}
+        <div class="composite-path"><b>基准路径</b>${j.base_path || ""}</div>
+        <div class="composite-inv"><b>${j.invalidation_label || "反向条件"}</b>${j.invalidation || ""}</div>
+      </div>`;
     }
     function confirmBlock(spec) {
       const v = spec.indicator_verdict || {};
@@ -372,7 +376,10 @@
           <div class="four">
             <div class="${changedState(spec.direction_transition_summary)}"${changeDateAttr(spec.direction_transition_state)}>
               <div class="flab">中期方向</div>
-              <div class="fval dir ${T.direction || ""}">${spec.bias}${spec.direction_state.direction_status && spec.direction_state.direction_status !== "完整" ? `<span class="pwindow">${spec.direction_state.direction_status}</span>` : ""}${spec.direction_state.direction_phase === "待重建" ? `<span class="pwindow">待重建</span>` : ""}${spec.direction_progress ? `<span class="pwindow">${spec.direction_progress}</span>` : ""}</div>
+              <div class="fval dir ${T.direction || ""}">${spec.bias}</div>
+              ${spec.direction_state.direction_status && spec.direction_state.direction_status !== "完整" ? `<div class="pwindow">${spec.direction_state.direction_status}</div>` : ""}
+              ${spec.direction_state.direction_phase === "待重建" ? `<div class="pwindow">待重建</div>` : ""}
+              ${spec.direction_progress ? `<div class="pwindow">${spec.direction_progress}</div>` : ""}
               ${transitionLine(spec.direction_transition_summary)}
               ${boundLine(B.direction)}
             </div>
@@ -387,17 +394,19 @@
               <div class="flab">行情阶段</div>
               <div class="fval stage ${T.stage || ""}">${spec.stage_label}</div>
               ${transitionLine(spec.stage_transition_summary)}
+              ${spec.stage_repair_summary ? `<div class="pwindow stage-repair-summary">${spec.stage_repair_summary}</div>` : ""}
               ${boundLine(B.stage)}
             </div>
             <div class="ffocus ${changedState(spec.focus_transition_summary)}"${changeDateAttr(spec.focus_transition_state)}>
               <div class="flab">当前焦点</div>
               <div class="fval ${T.focus || "gold"}">${focus.label || "等待关键区域测试"}</div>
-              ${focus.zone ? `<div class="fbound"><span class="fpx">${rng(focus.zone, d)}</span></div>` : ""}
-              ${keyTestLine(spec)}
+              ${focus.note ? `<div class="pwindow">${focus.note}</div>` : ""}
+              ${minuteNote(spec)}
               ${transitionLine(spec.focus_transition_summary)}
-              ${boundLine(B.focus)}
+              ${focus.zone ? `<div class="fbound"><span class="fpx">${rng(focus.zone, d)}</span></div>` : boundLine(B.focus)}
             </div>
           </div>
+          ${compositeBlock(spec)}
           <div class="pathgrid">
             <section class="pathcol">
               <b>↓ 下行路径</b>
@@ -555,7 +564,13 @@
       const dec = key === "TL" ? 2 : 3;
       const bars = slice(spec.bars, n);
       const focusBars = bars.slice(-Math.min(40, bars.length));
-      const coreZones = Object.values(spec.price_path || {}).filter(Boolean).flatMap(x => x.zone);
+      // All daily display paths must remain in the price domain.  In particular,
+      // a remote path can sit outside the last 40 candles but is still a visible
+      // support/resistance zone, not merely an off-screen reference.
+      const displayZones = ["support", "resistance"]
+        .map(side => (spec.display_levels || {})[side] || [])
+        .flatMap(levels => (levels || []).map(level => level.zone));
+      const coreZones = Object.values(spec.price_path || {}).filter(Boolean).flatMap(x => x.zone).concat(displayZones);
       const shapeLines = shapeBoundaryYs(spec);
       const priceVals = nums(focusBars.flatMap(b => [b.low, b.high]).concat(coreZones));
       const nativeMin = Math.min(...priceVals);
@@ -616,14 +631,21 @@
       const bandData = [];
       if (showBand) {
         const display = spec.display_levels;
-        if (!display || !display.display_paths) throw new Error("missing display_levels.display_paths");
+        if (!display || !Array.isArray(display.support) || !Array.isArray(display.resistance)) {
+          throw new Error("missing display_levels support/resistance");
+        }
         const addDisplayBand = (level, color, lineColor, tag, labelColor, labelPosition) => {
           const z = level.zone;
           const primary = level.chart_visual_level === "primary";
           const remote = level.chart_visual_level === "remote";
           const reversalWatch = String(level.chart_role || "").startsWith("reversal_watch_");
-          // The price chart is for locating zones; exact numbers remain in cards and tooltips.
-          if (!remote) bandData.push(area(z[0], z[1], reversalWatch ? C.former : primary ? C.primary : color, "", labelColor, "insideLeft"));
+          // Every path remains a zone on the chart. Remote levels use the
+          // stronger far-zone tint so they remain legible without masquerading
+          // as the active primary observation.
+          const bandColor = reversalWatch ? C.former : primary ? C.primary : remote
+            ? (level.chart_role === "support" ? C.bandSF : C.bandRF)
+            : color;
+          bandData.push(area(z[0], z[1], bandColor, "", labelColor, "insideLeft"));
           const lineStyle = {
             width: reversalWatch ? 1.0 : primary ? 2.2 : remote ? 0.8 : 1.3,
             type: reversalWatch ? "dashed" : "solid"
@@ -636,7 +658,10 @@
         ((display.chart_visual_plan || {}).dense_clusters || []).forEach(cluster => {
           bandData.push(area(cluster.zone[0], cluster.zone[1], C.dense, "", "#6d6454", "insideLeft"));
         });
-        const chartPaths = display.display_paths;
+        // The card-facing support/resistance paths are the chart's single source
+        // of truth. display_paths is an auxiliary daily-candidate projection and
+        // must not replace an active structural path (for example TL 116.82–116.86).
+        const chartPaths = { support: display.support, resistance: display.resistance };
         (chartPaths.support || []).forEach((level, i) => addDisplayBand(level, C.bandS, C.structS, level.chart_label, "#8a1f16", i % 2 ? "insideEndTop" : "insideStartBottom"));
         (chartPaths.resistance || []).forEach((level, i) => addDisplayBand(level, C.bandR, C.structR, level.chart_label, "#1f4d38", i % 2 ? "insideStartTop" : "insideEndBottom"));
         (display.former || []).forEach(level => addDisplayBand(level, C.former, C.formerLine, level.chart_label, "#6d4b12", "insideEndTop"));
@@ -651,11 +676,11 @@
         return side;
       };
       const candidates = [];
-      const queueLine = (name, y, color, width, tip, priority) => {
+      const queueLine = (name, y, color, width, tip, priority, labelPosition) => {
         if (y == null || Number.isNaN(+y)) return;
         y = +y;
         if (y >= priceMin && y <= priceMax) {
-          candidates.push({ name, y, color, width, tip, priority });
+          candidates.push({ name, y, color, width, tip, priority, labelPosition });
         } else {
           offscreen.push({ name, y, color, below: y < priceMin });
         }
@@ -668,10 +693,10 @@
         const formerZones = ((spec.display_levels || {}).former || []).map(x => x.zone);
         const isFormer = zone => formerZones.some(item => same(item, zone));
         if (refS && !same(refS.zone, spec.daily_price_path?.support_structure?.zone) && !isFormer(refS.zone)) {
-          queueLine(refShort("原撑", refS.label), mid(refS.zone), C.structS, refS.displaced ? 0.8 : 1.15, "原结构支撑仅用于阶段跌破确认，不作为当前下行路径。", 1);
+          queueLine(refShort("原撑", refS.label), mid(refS.zone), C.structS, refS.displaced ? 0.8 : 1.15, "原结构支撑仅用于阶段跌破确认，不作为当前下行路径。", 1, "insideStart");
         }
         if (refR && !same(refR.zone, spec.daily_price_path?.resistance_structure?.zone) && !isFormer(refR.zone)) {
-          queueLine(refShort("原压", refR.label), mid(refR.zone), C.structR, refR.displaced ? 0.8 : 1.15, "原结构压力仅用于阶段突破确认，不作为当前上行路径。", 1);
+          queueLine(refShort("原压", refR.label), mid(refR.zone), C.structR, refR.displaced ? 0.8 : 1.15, "原结构压力仅用于阶段突破确认，不作为当前上行路径。", 1, "insideStart");
         }
         shapeLines.forEach(y => {
           queueLine("形态边界", y, C.invN, 1.3, `形态边界 ${fmt(y, dec)}<br>当前形态：${patName}`, 3);
@@ -703,7 +728,7 @@
           yAxis: item.y,
           label: {
             formatter: item.name,
-            position: item.position || "insideEnd",
+            position: item.labelPosition || item.position || "insideEnd",
             color: item.color,
             fontSize: 10,
             distance: 4

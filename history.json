@@ -146,7 +146,7 @@
   {
     "rules_version": "v2.12-15m-short-layer-20260901",
     "asof": "2026-09-02",
-    "title": "T 转弱观察，TL 趋势延续",
+    "title": "转弱观察",
     "current_contract": {
       "T": "T2612.CFE",
       "TL": "TL2612.CFE"
@@ -169,8 +169,9 @@
       "channel_quality": null,
       "stage": "转弱观察",
       "stage_transition_summary": "阶段降级｜结构支撑近3日2次有效跌破",
-      "focus": "突破后回踩",
-      "focus_transition_summary": "焦点切换｜回抽原结构支撑｜潜在压力确认中转为突破后回踩",
+      "focus": "跌破后回抽｜偏空验证中",
+      "composite": "短线偏空，中期偏多框架尚未失效",
+      "focus_transition_summary": null,
       "indicators": {
         "MACD": "动能增强",
         "KDJ": "中性",
@@ -199,10 +200,11 @@
       "shape_transition_summary": "上升通道正式退出｜近3日2次有效跌破形态边界；重扫60/50/40日未识别新形态",
       "pattern_window": null,
       "channel_quality": null,
-      "stage": "趋势延续",
-      "stage_transition_summary": "回调结束｜价格完成修复并连续满足恢复条件",
-      "focus": "突破后回踩",
-      "focus_transition_summary": "焦点切换｜回抽原结构支撑｜潜在压力确认中转为突破后回踩",
+      "stage": "转弱观察",
+      "stage_transition_summary": "阶段降级｜结构支撑近3日2次有效跌破",
+      "focus": "跌破后回抽｜偏空验证中",
+      "composite": "短线偏空，中期偏多框架尚未失效",
+      "focus_transition_summary": null,
       "indicators": {
         "MACD": "动能增强",
         "KDJ": "低位",
@@ -212,6 +214,81 @@
       "verdict": "无明显修正",
       "volatility": "明显收缩",
       "close": 115.91,
+      "state_change_reason": "market_event",
+      "analysis_contract": "TL2612.CFE"
+    }
+  },
+  {
+    "rules_version": "v2.12-15m-short-layer-20260901",
+    "asof": "2026-09-03",
+    "title": "趋势回调",
+    "current_contract": {
+      "T": "T2612.CFE",
+      "TL": "TL2612.CFE"
+    },
+    "T": {
+      "bias": "偏多",
+      "direction_transition_summary": null,
+      "direction_progress": null,
+      "invalid_near": null,
+      "pattern": "结构不清晰",
+      "pattern_label": "结构不清晰",
+      "display_summary": {
+        "running_pattern": "结构不清晰",
+        "status_line": null,
+        "boundary_line": "形态边界 —",
+        "level_summary": "短线夹板 109.47–109.505"
+      },
+      "shape_transition_summary": "上升通道正式退出｜近3日2次有效跌破形态边界；重扫60/50/40日未识别新形态",
+      "pattern_window": null,
+      "channel_quality": null,
+      "stage": "趋势回调",
+      "stage_transition_summary": "跌破失效｜收盘重新站回原结构支撑，转入结构重新修复",
+      "focus": "原结构支撑突破失败",
+      "composite": "短线偏空，中期偏多框架尚未失效",
+      "focus_transition_summary": "焦点离开跌破后回抽｜偏空验证中",
+      "indicators": {
+        "MACD": "动能增强",
+        "KDJ": "中性",
+        "RSI": "中性",
+        "BOLL": "轨道内部·明显收缩"
+      },
+      "verdict": "无明显修正",
+      "volatility": "明显收缩",
+      "close": 109.49,
+      "state_change_reason": "market_event",
+      "analysis_contract": "T2612.CFE"
+    },
+    "TL": {
+      "bias": "偏多",
+      "direction_transition_summary": null,
+      "direction_progress": null,
+      "invalid_near": null,
+      "pattern": "结构不清晰",
+      "pattern_label": "结构不清晰",
+      "display_summary": {
+        "running_pattern": "结构不清晰",
+        "status_line": null,
+        "boundary_line": "形态边界 —",
+        "level_summary": null
+      },
+      "shape_transition_summary": "上升通道正式退出｜近3日2次有效跌破形态边界；重扫60/50/40日未识别新形态",
+      "pattern_window": null,
+      "channel_quality": null,
+      "stage": "趋势回调",
+      "stage_transition_summary": "跌破失效｜收盘重新站回原结构支撑，转入结构重新修复",
+      "focus": "原结构支撑突破失败",
+      "composite": "短线偏空，中期偏多框架尚未失效",
+      "focus_transition_summary": "焦点离开跌破后回抽｜偏空验证中",
+      "indicators": {
+        "MACD": "动能增强",
+        "KDJ": "低位转强·新发生",
+        "RSI": "中性",
+        "BOLL": "轨道内部·明显收缩"
+      },
+      "verdict": "无明显修正",
+      "volatility": "明显收缩",
+      "close": 116.37,
       "state_change_reason": "market_event",
       "analysis_contract": "TL2612.CFE"
     }
