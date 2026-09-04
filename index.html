@@ -329,11 +329,15 @@
       const j = spec.composite_judgement;
       if (!j || !j.headline) return "";
       const tone = j.tone || "gold";
+      const extra = [];
+      if (j.next_validation) extra.push(`<div class="composite-inv"><b>${j.next_validation_label || "下一验证"}</b>${j.next_validation}</div>`);
+      if (j.further) extra.push(`<div class="composite-inv"><b>${j.further_label || "进一步转强"}</b>${j.further}</div>`);
       return `<div class="composite ${tone}">
         <div class="flab">综合判断</div>
         <div class="fval ${tone}">${j.headline}</div>
         ${j.setup ? `<div class="composite-setup">${j.setup}</div>` : ""}
         <div class="composite-path"><b>基准路径</b>${j.base_path || ""}</div>
+        ${extra.join("")}
         <div class="composite-inv"><b>${j.invalidation_label || "反向条件"}</b>${j.invalidation || ""}</div>
       </div>`;
     }
