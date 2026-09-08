@@ -252,8 +252,8 @@
     function displayPathCells(spec, side, d, focusZone) {
       const display = spec.display_levels;
       if (!display) throw new Error("missing display_levels");
-      const levels = display[side];
-      if (!Array.isArray(levels)) throw new Error("missing display_levels." + side);
+      const levels = (display.display_paths && display.display_paths[side]) || display[side];
+      if (!Array.isArray(levels)) throw new Error("missing display_levels paths for " + side);
       return levels.map(item => cell({ ...item, roles: [item.role] }, item.horizon, item.role, d, focusZone, display.path_attention)).join("");
     }
     function displayNotes(spec, d) {
@@ -266,17 +266,7 @@
       if (context) bits.push(`<b>盘中背景</b>｜${context.type === "narrow_range" ? "15分钟夹板" : "15分钟单侧边界"} ${rng(context.zone, d)}`);
       return bits.length ? `<div class="struct-state">${bits.join("<br>")}</div>` : "";
     }
-    function pathCells(near, structural, nearHorizon, nearRole, d, focusZone) {
-      if (near && structural && sameZone(near.zone, structural.zone)) {
-        const role = (near.roles && near.roles[0]) || nearRole;
-        return cell(
-          { ...near, roles: [role], action: "兼具近端位置 + 当前结构路径" },
-          "关键", role, d, focusZone
-        );
-      }
-      return cell(near, nearHorizon, nearRole, d, focusZone)
-        + cell(structural, "结构路径", /支撑/.test(nearRole) ? "结构支撑" : "结构压力", d, focusZone);
-    }
+
     function structureStateLine(spec, d) {
       const events = spec.structural_break_events || [];
       const event = events.find(x => x.active);
@@ -546,15 +536,13 @@
       return out.join("");
     }
     function slice(bars, n) { return n >= bars.length ? bars : bars.slice(-n); }
-    function extendLine(p1, p2, dates) {
-      if (!p1 || !p2 || dates.length < 2) return [];
-      const x1 = new Date(p1[0]).getTime(), x2 = new Date(p2[0]).getTime();
-      if (x2 === x1) return [];
-      const slope = (p2[1] - p1[1]) / (x2 - x1);
-      return dates.map(d => {
-        const x = new Date(d).getTime();
-        return +(p1[1] + slope * (x - x1)).toFixed(4);
+    function railSeriesData(rail, dates) {
+      if (!Array.isArray(rail) || rail.length < 2 || !dates.length) return [];
+      const byDate = {};
+      rail.forEach(point => {
+        if (point && point[0] != null && point[1] != null) byDate[point[0]] = +point[1];
       });
+      return dates.map(d => (d in byDate && !Number.isNaN(byDate[d]) ? byDate[d] : null));
     }
 
     function draw(key, n) {
@@ -572,7 +560,10 @@
       // a remote path can sit outside the last 40 candles but is still a visible
       // support/resistance zone, not merely an off-screen reference.
       const displayZones = ["support", "resistance"]
-        .map(side => (spec.display_levels || {})[side] || [])
+        .map(side => {
+          const display = spec.display_levels || {};
+          return (display.display_paths && display.display_paths[side]) || display[side] || [];
+        })
         .flatMap(levels => (levels || []).map(level => level.zone));
       const coreZones = Object.values(spec.price_path || {}).filter(Boolean).flatMap(x => x.zone).concat(displayZones);
       const shapeLines = shapeBoundaryYs(spec);
@@ -635,7 +626,8 @@
       const bandData = [];
       if (showBand) {
         const display = spec.display_levels;
-        if (!display || !Array.isArray(display.support) || !Array.isArray(display.resistance)) {
+        const pathSet = (display && display.display_paths) || display || {};
+        if (!display || !Array.isArray(pathSet.support) || !Array.isArray(pathSet.resistance)) {
           throw new Error("missing display_levels support/resistance");
         }
         const addDisplayBand = (level, color, lineColor, tag, labelColor, labelPosition) => {
@@ -662,10 +654,7 @@
         ((display.chart_visual_plan || {}).dense_clusters || []).forEach(cluster => {
           bandData.push(area(cluster.zone[0], cluster.zone[1], C.dense, "", "#6d6454", "insideLeft"));
         });
-        // The card-facing support/resistance paths are the chart's single source
-        // of truth. display_paths is an auxiliary daily-candidate projection and
-        // must not replace an active structural path (for example TL 116.82–116.86).
-        const chartPaths = { support: display.support, resistance: display.resistance };
+        const chartPaths = { support: pathSet.support, resistance: pathSet.resistance };
         (chartPaths.support || []).forEach((level, i) => addDisplayBand(level, C.bandS, C.structS, level.chart_label, "#8a1f16", i % 2 ? "insideEndTop" : "insideStartBottom"));
         (chartPaths.resistance || []).forEach((level, i) => addDisplayBand(level, C.bandR, C.structR, level.chart_label, "#1f4d38", i % 2 ? "insideStartTop" : "insideEndBottom"));
         (display.former || []).forEach(level => addDisplayBand(level, C.former, C.formerLine, level.chart_label, "#6d4b12", "insideEndTop"));
@@ -743,7 +732,7 @@
       });
       const railSeries = (name, rail) => ({
         name, type: "line", xAxisIndex: 0, yAxisIndex: 0, clip: true, z: 8,
-        data: extendLine(rail[0], rail[1], dates),
+        data: railSeriesData(rail, dates),
         showSymbol: false,
         lineStyle: { color: C.ch, width: 1.8, type: "dashed" },
         endLabel: { show: false },
