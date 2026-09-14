@@ -517,5 +517,80 @@
       "state_change_reason": "market_event",
       "analysis_contract": "TL2612.CFE"
     }
+  },
+  {
+    "rules_version": "v2.12-15m-short-layer-20260901",
+    "asof": "2026-09-11",
+    "title": "趋势回调",
+    "current_contract": {
+      "T": "T2612.CFE",
+      "TL": "TL2612.CFE"
+    },
+    "T": {
+      "bias": "偏多",
+      "direction_transition_summary": null,
+      "direction_progress": null,
+      "invalid_near": 109.402,
+      "pattern": "上升通道",
+      "pattern_label": "上升通道",
+      "display_summary": {
+        "running_pattern": "上升通道",
+        "status_line": "失效待确认｜近3日已有1日有效跌破，2日确认失效",
+        "boundary_line": "形态边界 109.402",
+        "level_summary": null
+      },
+      "shape_transition_summary": null,
+      "pattern_window": 60,
+      "channel_quality": "高",
+      "stage": "趋势回调",
+      "stage_transition_summary": null,
+      "focus": "测试近端压力",
+      "composite": "短线偏空，中期偏多框架尚未失效",
+      "focus_transition_summary": "焦点切换｜价格由短线压力转至近端压力测试范围",
+      "indicators": {
+        "MACD": "动能衰减",
+        "KDJ": "中性",
+        "RSI": "中性",
+        "BOLL": "轨道内部·明显收缩"
+      },
+      "verdict": "无明显修正",
+      "volatility": "明显收缩",
+      "close": 109.35,
+      "state_change_reason": "market_event",
+      "analysis_contract": "T2612.CFE"
+    },
+    "TL": {
+      "bias": "偏多",
+      "direction_transition_summary": null,
+      "direction_progress": null,
+      "invalid_near": 116.22,
+      "pattern": "上升通道",
+      "pattern_label": "上升通道",
+      "display_summary": {
+        "running_pattern": "上升通道",
+        "status_line": "失效待确认｜近3日已有1日有效跌破，2日确认失效；通道边界较松",
+        "boundary_line": "形态边界 116.22",
+        "level_summary": null
+      },
+      "shape_transition_summary": null,
+      "pattern_window": 60,
+      "channel_quality": "低",
+      "stage": "趋势回调",
+      "stage_transition_summary": "阶段切换｜震荡整理转为趋势回调",
+      "focus": "测试近端支撑",
+      "composite": "短线偏空，中期偏多框架尚未失效",
+      "focus_transition_summary": "焦点切换｜价格由短线支撑转至近端支撑测试范围",
+      "indicators": {
+        "MACD": "动能衰减",
+        "KDJ": "中性",
+        "RSI": "中性",
+        "BOLL": "轨道内部·明显收缩"
+      },
+      "verdict": "无明显修正",
+      "volatility": "明显收缩",
+      "close": 116.05,
+      "state_change_reason": "market_event",
+      "analysis_contract": "TL2612.CFE"
+    }
   }
 ]
