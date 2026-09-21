@@ -325,6 +325,7 @@
       return `<div class="composite ${tone}">
         <div class="flab">综合判断</div>
         <div class="fval ${tone}">${j.headline}</div>
+        ${j.short_evidence ? `<div class="composite-setup"><b>短线依据</b>${j.short_evidence}</div>` : ""}
         ${j.setup ? `<div class="composite-setup">${j.setup}</div>` : ""}
         <div class="composite-path"><b>基准路径</b>${j.base_path || ""}</div>
         ${extra.join("")}
