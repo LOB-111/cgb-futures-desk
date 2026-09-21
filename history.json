@@ -1,6 +1,6 @@
 [
   {
-    "rules_version": "v2.13-short-bias-correction-20260921",
+    "rules_version": "v2.16-five-layer-20260921",
     "asof": "2026-09-18",
     "title": "趋势回调",
     "current_contract": {
@@ -18,7 +18,7 @@
         "running_pattern": "结构不清晰",
         "status_line": null,
         "boundary_line": "形态边界 —",
-        "level_summary": "短线夹板 109.495–109.55"
+        "level_summary": null
       },
       "shape_transition_summary": "上升通道正式退出｜近3日2次有效跌破形态边界；重扫60/50/40日未识别新形态",
       "pattern_window": null,
@@ -26,16 +26,16 @@
       "stage": "趋势回调",
       "stage_transition_summary": null,
       "focus": "原结构压力初步突破",
-      "composite": "短线中性偏多，中期仍偏多",
+      "composite": "短线中性偏多，中期偏多背景，结构暂不清晰",
       "focus_transition_summary": "焦点离开15分钟测试短线支撑后初步止跌",
       "indicators": {
-        "MACD": "动能中性",
-        "KDJ": "中性",
-        "RSI": "中性",
-        "BOLL": "接近上轨·明显收缩"
+        "MACD": "零轴上方，DIF上行，DEA上行，红柱缩短，金叉",
+        "KDJ": "K80 / D67 / J104，中位上行",
+        "RSI": "61.1，上行，未进入过热区",
+        "BOLL": "上轨109.573，中轨109.423，下轨109.272；当前距上轨0.038；BBW处9%历史分位，开始回升"
       },
-      "verdict": "无明显修正",
-      "volatility": "明显收缩",
+      "verdict": "偏多辅助",
+      "volatility": "低波动收敛 → 边际扩张",
       "close": 109.535,
       "state_change_reason": "market_event",
       "analysis_contract": "T2612.CFE"
@@ -51,24 +51,24 @@
         "running_pattern": "结构不清晰",
         "status_line": null,
         "boundary_line": "形态边界 —",
-        "level_summary": "短线夹板 116.46–116.59"
+        "level_summary": null
       },
       "shape_transition_summary": "上升通道正式退出｜近3日2次有效跌破形态边界；重扫60/50/40日未识别新形态",
       "pattern_window": null,
       "channel_quality": null,
       "stage": "趋势回调",
       "stage_transition_summary": null,
-      "focus": "15分钟测试短线支撑后初步止跌",
-      "composite": "短线中性，中期仍偏多",
-      "focus_transition_summary": null,
+      "focus": "测试近端支撑",
+      "composite": "短线中性偏空，中期偏多框架尚未失效",
+      "focus_transition_summary": "焦点切换｜价格由短线支撑转至近端支撑测试范围",
       "indicators": {
-        "MACD": "动能中性",
-        "KDJ": "中性",
-        "RSI": "中性",
-        "BOLL": "接近上轨·明显收缩"
+        "MACD": "零轴上方，DIF上行，DEA下行，绿柱缩短",
+        "KDJ": "K59 / D48 / J80，中位上行",
+        "RSI": "60.1，上行，未进入过热区",
+        "BOLL": "上轨116.76，中轨116.23，下轨115.70；当前距上轨0.16；BBW处10%历史分位，开始回升"
       },
-      "verdict": "无明显修正",
-      "volatility": "明显收缩",
+      "verdict": "偏多辅助",
+      "volatility": "低波动收敛 → 边际扩张",
       "close": 116.6,
       "state_change_reason": "market_event",
       "analysis_contract": "TL2612.CFE"
