@@ -41,31 +41,38 @@
     }
     .frame { max-width: 1440px; margin: 0 auto; padding: 24px 32px 40px; }
     header {
-      display: grid;
-      grid-template-columns: 1fr auto 1fr;
-      align-items: center;
-      min-height: 64px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
       gap: 16px;
-      border-bottom: 1px solid var(--border);
-      margin-bottom: 16px;
-    }
-    .brand-code {
-      font-size: 12px; font-weight: 500; color: var(--text-muted); letter-spacing: .04em;
+      min-height: 48px;
+      margin-bottom: 8px;
     }
     h1 {
-      font-size: 28px; font-weight: 600; margin: 2px 0 0; letter-spacing: -.02em;
+      font-size: 28px; font-weight: 600; margin: 0; letter-spacing: -.02em;
       color: var(--text-primary); line-height: 1.2;
     }
-    .nav { display: flex; gap: 4px; }
-    .nav a {
-      color: var(--text-secondary); text-decoration: none;
-      font-size: 13px; font-weight: 500;
-      padding: 6px 10px; border-radius: var(--radius-sm);
+    .contract-tabs {
+      display: flex; flex-wrap: nowrap; gap: 0; align-items: stretch;
+      border-bottom: 1px solid var(--border); margin: 0 0 16px; overflow-x: auto;
     }
-    .nav a:hover { background: var(--neutral-soft); color: var(--text-primary); }
+    .contract-tab {
+      appearance: none; background: transparent; border: 0;
+      border-bottom: 2px solid transparent; color: var(--text-muted);
+      font: inherit; font-size: 14px; font-weight: 500; letter-spacing: .02em;
+      padding: 8px 16px 10px; margin-bottom: -1px; cursor: pointer;
+      border-radius: var(--radius-sm) var(--radius-sm) 0 0; white-space: nowrap;
+    }
+    .contract-tab:hover { color: var(--text-secondary); }
+    .contract-tab[aria-selected="true"] {
+      color: var(--text-primary); background: var(--surface);
+      border-bottom-color: var(--text-primary);
+    }
+    .contract-panel { display: none; }
+    .contract-panel.active { display: block; }
     .asof {
       text-align: right; font-size: 12px; font-weight: 500; color: var(--text-muted);
-      justify-self: end;
+      flex-shrink: 0;
     }
     .asof b {
       display: block; font-size: 13px; font-weight: 600; color: var(--text-secondary);
@@ -111,6 +118,7 @@
       min-height: 28px; align-items: baseline;
     }
     .core-line .k { color: var(--text-secondary); font-weight: 400; }
+    .erole { color: var(--text-muted); font-weight: 500; }
     .core-reason {
       margin: -2px 0 8px 72px; font-size: 13px; line-height: 1.45;
       color: var(--text-secondary);
@@ -341,9 +349,9 @@
     }
     @media (max-width: 767px) {
       .frame { padding: 16px 16px 32px; }
-      header { display: flex; flex-wrap: wrap; min-height: 0; padding: 8px 0 12px; }
-      .nav { order: 3; width: 100%; }
-      .asof { text-align: left; justify-self: start; }
+      header { min-height: 0; padding: 8px 0 4px; }
+      .contract-tabs { margin-bottom: 12px; }
+      .contract-tab { padding: 8px 14px 10px; }
       .head { display: block; }
       .pathgrid, .evidence-grid { grid-template-columns: 1fr; }
       .core-reason { margin-left: 0; }
@@ -356,24 +364,21 @@
 <body>
   <div class="frame">
     <header>
-      <div>
-        <div class="brand-code" id="brand-code">T.CFE / TL.CFE</div>
-        <h1>国债期货技术面</h1>
-      </div>
-      <nav class="nav">
-        <a href="#card-T">T</a>
-        <a href="#card-TL">TL</a>
-      </nav>
+      <h1>国债期货技术面</h1>
       <div class="asof">
         更新时间
         <b id="asof">—</b>
         <div><span class="mkt-status" id="source"></span></div>
       </div>
     </header>
+    <div class="contract-tabs" role="tablist" aria-label="合约">
+      <button type="button" class="contract-tab" role="tab" id="tab-TL" data-contract="TL" aria-controls="card-TL" aria-selected="true">TL</button>
+      <button type="button" class="contract-tab" role="tab" id="tab-T" data-contract="T" aria-controls="card-T" aria-selected="false" tabindex="-1">T</button>
+    </div>
     <div class="banner" id="banner">正在加载结论…</div>
+    <article class="card product contract-panel" id="card-T" role="tabpanel" aria-labelledby="tab-T"><p class="note">正在写入 T 结论…</p></article>
+    <article class="card product contract-panel active" id="card-TL" role="tabpanel" aria-labelledby="tab-TL"><p class="note">正在写入 TL 结论…</p></article>
     <section class="view" id="view" hidden></section>
-    <article class="card product" id="card-T"><p class="note">正在写入 T 结论…</p></article>
-    <article class="card product" id="card-TL"><p class="note">正在写入 TL 结论…</p></article>
     <section class="hist">
       <details class="fold">
         <summary>历史状态</summary>
@@ -393,7 +398,6 @@
     const fmt = (n, d) => Number(n).toFixed(d);
     document.getElementById("asof").textContent = D.asof;
     document.getElementById("source").textContent = `${D.source} · 日线已收盘`;
-    document.getElementById("brand-code").textContent = `${D.codes.T} / ${D.codes.TL}`;
     document.getElementById("banner").style.display = "none";
     const cross = (D.cross_events || []).filter(Boolean);
     const view = document.getElementById("view");
@@ -442,7 +446,8 @@
       const structure = spec.market_structure || {};
       const event = spec.current_event || {};
       const bar = spec.status_bar || {};
-      const confLine = bar.confirmation_status || bar.event_confidence || "";
+      const confLine = bar.event_confidence || bar.confirmation_status || "";
+      const stageLine = event.stage_text || bar.event_stage || event.state || "";
       const reasonTip = attrEscape(structure.reason_detail || "");
       const records = [
         spec.direction_transition_state && spec.direction_transition_state.summary,
@@ -457,8 +462,9 @@
         <div class="core-head">${paintBias(coreHeadline(spec))}</div>
         <div class="core-line core-structure"${reasonTip ? ` title="${reasonTip}"` : ""}><span class="k">市场结构</span><span class="v">${structure.label || ""}${changeStamp(structure.show_change, structure.last_changed_at)}</span></div>
         ${structure.reason ? `<div class="core-reason"${reasonTip ? ` title="${reasonTip}"` : ""}>${structure.reason}</div>` : ""}
-        <div class="core-line core-event"><span class="k">当前事件</span><span class="v">${event.label || ""}${event.state ? " · " + event.state : ""}${changeStamp(event.show_change, event.last_changed_at)}</span></div>
-        <div class="core-line core-confirm"><span class="k">确认状态</span><span class="v">${confLine}${changeStamp(bar.confirm_show_change, bar.confirm_changed_at)}</span></div>
+        <div class="core-line core-event"><span class="k">当前事件</span><span class="v">${event.label || ""}${changeStamp(event.show_change, event.last_changed_at)}</span></div>
+        <div class="core-line core-stage"><span class="k">事件阶段</span><span class="v">${stageLine}</span></div>
+        <div class="core-line core-confirm"><span class="k">事件确认</span><span class="v">${confLine}${changeStamp(bar.confirm_show_change, bar.confirm_changed_at)}</span></div>
         ${fold}
       </div>`;
     }
@@ -510,9 +516,10 @@
       if (!view) throw new Error("missing evidence card view");
       const rows = (view.rows || []).map(row => drow(row.k, row.v, row.extra)).join("");
       const conditions = (view.conditions || []).map(line => `<div class="ed">${line}</div>`).join("");
+      const role = view.role ? `<span class="erole">｜${view.role}</span>` : "";
       return `<div class="evidence-card">
         <div class="evidence-head">
-          <div class="flab">${view.title}</div>
+          <div class="flab">${view.title}${role}</div>
           <span class="tag ${toneTag(view.tone)}">${view.headline || ""}</span>
         </div>
         <div class="drows">${rows}</div>
@@ -582,8 +589,57 @@
     }
     document.getElementById("card-T").innerHTML = card("T", D.T);
     document.getElementById("card-TL").innerHTML = card("TL", D.TL);
-
     const charts = {};
+
+    function readContract() {
+      return new URLSearchParams(location.search).get("contract") === "T" ? "T" : "TL";
+    }
+    function resizeActiveChart(key) {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => { charts[key]?.resize(); });
+      });
+    }
+    function syncHistory(key) {
+      document.querySelectorAll(".hist-block").forEach(el => {
+        el.hidden = el.dataset.contract !== key;
+      });
+      document.querySelectorAll(".hist .pill").forEach(pill => {
+        pill.hidden = ![...pill.querySelectorAll(".hist-block")].some(block => !block.hidden);
+      });
+    }
+    function setActiveContract(key, updateUrl) {
+      const active = key === "T" ? "T" : "TL";
+      document.getElementById("card-T").classList.toggle("active", active === "T");
+      document.getElementById("card-TL").classList.toggle("active", active === "TL");
+      document.querySelectorAll(".contract-tab").forEach(tab => {
+        const on = tab.dataset.contract === active;
+        tab.setAttribute("aria-selected", on ? "true" : "false");
+        tab.tabIndex = on ? 0 : -1;
+      });
+      syncHistory(active);
+      if (updateUrl) {
+        const url = new URL(location.href);
+        url.searchParams.set("contract", active);
+        history.replaceState({ contract: active }, "", url);
+      }
+      resizeActiveChart(active);
+    }
+    document.querySelector(".contract-tabs").addEventListener("click", e => {
+      const tab = e.target.closest(".contract-tab");
+      if (!tab) return;
+      setActiveContract(tab.dataset.contract, true);
+    });
+    document.querySelector(".contract-tabs").addEventListener("keydown", e => {
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      const tabs = [...document.querySelectorAll(".contract-tab")];
+      const i = tabs.findIndex(tab => tab.getAttribute("aria-selected") === "true");
+      const next = tabs[(i + (e.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length];
+      next.focus();
+      setActiveContract(next.dataset.contract, true);
+      e.preventDefault();
+    });
+    setActiveContract(readContract(), false);
+
     const observers = {};
     const rangeN = { T: 60, TL: 60 };
     const clickWait = {};
@@ -1053,7 +1109,8 @@
       };
       add("中期方向", prev && prev.bias, cur.bias);
       add("运行形态", prev && layerName(prev), layerName(cur));
-      add("行情阶段", prev && prev.stage_label, cur.stage_label);
+      add("当前事件", prev && prev.event, cur.event);
+      add("事件阶段", prev && prev.event_stage, cur.event_stage);
       add("当前焦点", prev && prev.focus, cur.focus);
       add("辅助确认", prev && prev.verdict, cur.verdict);
       add("波动状态", prev && prev.volatility, cur.volatility);
@@ -1073,7 +1130,7 @@
           ? `（${oldContract || "原序列"} → ${newContract || "未知合约"}）`
           : "";
         const reason = recal ? ` · 换月重估${contractText}` : " · 市场事件";
-        return `<div><div class="d">${md(h.asof)} ${key}${reason}</div>${lines.join("<br>")}</div>`;
+        return `<div class="hist-block" data-contract="${key}"><div class="d">${md(h.asof)} ${key}${reason}</div>${lines.join("<br>")}</div>`;
       }).filter(Boolean);
       if (!blocks.length) return;
       const el = document.createElement("div");
@@ -1084,6 +1141,7 @@
     if (!rail.children.length) {
       rail.textContent = "尚无层级变化可显示。";
     }
+    syncHistory(readContract());
     document.getElementById("foot").textContent =
       `${D.roll_note} 数据来源于万得 Wind 金融数据服务。`;
 
@@ -1092,7 +1150,11 @@
         document.getElementById("foot").textContent = "图表库 echarts.min.js 未加载，结论文字仍可用。";
         return;
       }
-      try { draw("T", 60); draw("TL", 60); }
+      try {
+        draw("T", 60);
+        draw("TL", 60);
+        resizeActiveChart(readContract());
+      }
       catch (err) { document.getElementById("foot").textContent = "画图失败：" + err.message; }
     }
     if (window.echarts) {

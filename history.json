@@ -1,83 +1,8 @@
 [
   {
-    "rules_version": "v2.16-five-layer-20260921",
-    "asof": "2026-09-18",
-    "title": "趋势回调",
-    "current_contract": {
-      "T": "T2612.CFE",
-      "TL": "TL2612.CFE"
-    },
-    "T": {
-      "bias": "偏多",
-      "direction_transition_summary": null,
-      "direction_progress": null,
-      "invalid_near": null,
-      "pattern": "结构不清晰",
-      "pattern_label": "结构不清晰",
-      "display_summary": {
-        "running_pattern": "结构不清晰",
-        "status_line": null,
-        "boundary_line": "形态边界 —",
-        "level_summary": null
-      },
-      "shape_transition_summary": "上升通道正式退出｜近3日2次有效跌破形态边界；重扫60/50/40日未识别新形态",
-      "pattern_window": null,
-      "channel_quality": null,
-      "stage": "趋势回调",
-      "stage_transition_summary": null,
-      "focus": "原结构压力初步突破",
-      "composite": "短线中性偏多，中期偏多背景，结构暂不清晰",
-      "focus_transition_summary": "焦点离开15分钟测试短线支撑后初步止跌",
-      "indicators": {
-        "MACD": "零轴上方，DIF上行，红柱缩短，金叉",
-        "KDJ": "K80 / D67 / J104，高位上行",
-        "RSI": "61.1，上行，未过热",
-        "BOLL": "上轨109.573，中轨109.423，下轨109.272；当前距上轨0.038；BBW处9%历史分位，开始回升"
-      },
-      "verdict": "偏多辅助",
-      "volatility": "低波动收敛 → 边际扩张",
-      "close": 109.535,
-      "state_change_reason": "market_event",
-      "analysis_contract": "T2612.CFE"
-    },
-    "TL": {
-      "bias": "偏多",
-      "direction_transition_summary": null,
-      "direction_progress": null,
-      "invalid_near": null,
-      "pattern": "结构不清晰",
-      "pattern_label": "结构不清晰",
-      "display_summary": {
-        "running_pattern": "结构不清晰",
-        "status_line": null,
-        "boundary_line": "形态边界 —",
-        "level_summary": null
-      },
-      "shape_transition_summary": "上升通道正式退出｜近3日2次有效跌破形态边界；重扫60/50/40日未识别新形态",
-      "pattern_window": null,
-      "channel_quality": null,
-      "stage": "趋势回调",
-      "stage_transition_summary": null,
-      "focus": "测试近端支撑",
-      "composite": "短线中性偏空，中期偏多框架尚未失效",
-      "focus_transition_summary": "焦点切换｜价格由短线支撑转至近端支撑测试范围",
-      "indicators": {
-        "MACD": "零轴上方，DIF上行，绿柱缩短",
-        "KDJ": "K59 / D48 / J80，中位上行",
-        "RSI": "60.1，上行，未过热",
-        "BOLL": "上轨116.76，中轨116.23，下轨115.70；当前距上轨0.16；BBW处10%历史分位，开始回升"
-      },
-      "verdict": "偏多辅助",
-      "volatility": "低波动收敛 → 边际扩张",
-      "close": 116.6,
-      "state_change_reason": "market_event",
-      "analysis_contract": "TL2612.CFE"
-    }
-  },
-  {
-    "rules_version": "v2.16-five-layer-20260921",
+    "rules_version": "v2.18-event-phase-20260922",
     "asof": "2026-09-21",
-    "title": "T 趋势扩张，TL 趋势延续",
+    "title": "T 突破接受，待回踩，TL 突破尝试，尚未接受",
     "current_contract": {
       "T": "T2612.CFE",
       "TL": "TL2612.CFE"
@@ -99,6 +24,8 @@
       "pattern_window": null,
       "channel_quality": null,
       "stage": "趋势扩张",
+      "event": "原结构压力向上突破",
+      "event_stage": "突破接受，待回踩",
       "stage_transition_summary": "阶段升级｜结构压力确认突破",
       "focus": "原结构压力确认突破",
       "composite": "短线与中期均偏多",
@@ -109,7 +36,7 @@
         "RSI": "60.1，下行，未过热",
         "BOLL": "上轨109.562，中轨109.420，下轨109.278；当前距上轨0.037；BBW处4%历史分位，继续收敛"
       },
-      "verdict": "偏多辅助",
+      "verdict": "偏多",
       "volatility": "低波动收敛",
       "close": 109.525,
       "state_change_reason": "market_event",
@@ -132,6 +59,8 @@
       "pattern_window": null,
       "channel_quality": null,
       "stage": "趋势延续",
+      "event": "原结构压力向上突破",
+      "event_stage": "突破尝试，尚未接受",
       "stage_transition_summary": "回调结束｜价格完成修复并连续满足恢复条件",
       "focus": "原结构压力初步突破",
       "composite": "短线与中期均偏多",
@@ -142,7 +71,7 @@
         "RSI": "61.3，上行，未过热",
         "BOLL": "上轨116.76，中轨116.23，下轨115.70；当前距上轨0.08；BBW处11%历史分位，开始回升"
       },
-      "verdict": "偏多辅助",
+      "verdict": "偏多",
       "volatility": "低波动收敛 → 边际扩张",
       "close": 116.68,
       "state_change_reason": "market_event",
