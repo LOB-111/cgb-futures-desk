@@ -104,7 +104,6 @@
       background: var(--surface); border: 1px solid var(--border);
       border-radius: var(--radius-lg); box-shadow: var(--shadow-card);
     }
-    .core-top { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
     .core-head { font-size: 24px; line-height: 1.3; font-weight: 600; margin: 0 0 12px; color: var(--text-primary); }
     .core-line {
       display: grid; grid-template-columns: 72px 1fr;
@@ -112,6 +111,17 @@
       min-height: 28px; align-items: baseline;
     }
     .core-line .k { color: var(--text-secondary); font-weight: 400; }
+    .core-reason {
+      margin: -2px 0 8px 72px; font-size: 13px; line-height: 1.45;
+      color: var(--text-secondary);
+    }
+    .change-stamp { color: var(--text-muted); font-size: 12px; font-weight: 400; margin-left: 8px; }
+    .core-history { margin-top: 4px; }
+    .core-history > summary { border-top: 0; padding-top: 8px; }
+    .layer-k {
+      font-size: 16px; font-weight: 600; color: var(--text-primary);
+      margin: 0 0 12px;
+    }
     .tag, .conf-tag {
       display: inline-flex; align-items: center;
       height: 24px; padding: 2px 8px; border-radius: var(--radius-sm);
@@ -123,14 +133,6 @@
     .tag.down, .conf-tag.bear { background: var(--down-soft); color: var(--down); border-color: var(--down-border); }
     .tag.warn, .conf-tag.gold { background: var(--warning-soft); color: var(--warning); border-color: var(--warning-border); }
     .tag.neutral { background: var(--neutral-soft); color: var(--neutral); border-color: var(--border); }
-    .core.state-changed::after {
-      content: attr(data-change-date) "变化";
-      position: absolute; top: 20px; right: 128px;
-      height: 22px; padding: 2px 8px; border-radius: var(--radius-sm);
-      font-size: 12px; font-weight: 500; line-height: 18px;
-      color: var(--warning); border: 1px solid var(--warning-border);
-      background: var(--warning-soft);
-    }
     .decision-grid {
       display: grid; grid-template-columns: 2fr 3fr; gap: 16px; margin-bottom: 16px;
     }
@@ -184,7 +186,7 @@
     .step-out { color: var(--text-secondary); font-size: 13px; margin-top: 2px; }
     .path-step[title] { cursor: help; }
     .evidence-grid {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 0 0 16px;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 0;
     }
     .evidence-card {
       padding: 16px 20px; background: var(--surface);
@@ -344,9 +346,7 @@
       .asof { text-align: left; justify-self: start; }
       .head { display: block; }
       .pathgrid, .evidence-grid { grid-template-columns: 1fr; }
-      .core-top { display: block; }
-      .conf-tag { display: inline-flex; margin-top: 8px; }
-      .core.state-changed::after { right: 16px; top: 16px; }
+      .core-reason { margin-left: 0; }
       .chart { height: 680px; }
       h1 { font-size: 22px; }
       .core-head { font-size: 20px; }
@@ -391,8 +391,6 @@
         "data.js 没有加载到。请打开同目录下的 index.html，不要只打开编辑器预览。";
     } else {
     const fmt = (n, d) => Number(n).toFixed(d);
-    const rng = (a, d) => `${fmt(a[0], d)}–${fmt(a[1], d)}`;
-    const PATTERN_LABELS = {};
     document.getElementById("asof").textContent = D.asof;
     document.getElementById("source").textContent = `${D.source} · 日线已收盘`;
     document.getElementById("brand-code").textContent = `${D.codes.T} / ${D.codes.TL}`;
@@ -407,101 +405,18 @@
       view.innerHTML = "";
     }
 
-    function indTone(name, val) {
-      if (name === "KDJ" && /转弱|下行|钝化/.test(val)) return "bear";
-      if (name === "KDJ" && /转强|偏强|上行/.test(val)) return "bull";
-      if (name === "KDJ" && /高位|低位/.test(val)) return "gold";
-      if (name === "MACD" && /明确底|改善|增强|红柱扩大|金叉/.test(val)) return "bull";
-      if (name === "MACD" && /明确顶|衰减|绿柱扩大|死叉/.test(val)) return "bear";
-      if (name === "MACD" && /弱|零轴/.test(val)) return "gold";
-      if (name === "RSI" && /过热|上行/.test(val)) return "bull";
-      if (name === "RSI" && /超卖|下行/.test(val)) return "bear";
-      if ((name === "布林" || name === "BOLL") && /收缩|扩张|上轨|下轨|带宽/.test(val)) return "gold";
-      return "neutral";
-    }
-    function sameZone(a, b) {
-      return a && b && Number(a[0]) === Number(b[0]) && Number(a[1]) === Number(b[1]);
-    }
-    function cell(item, horizon, role, d, focusZone, attention) {
-      if (!item) return `<div class="pathcell empty">${horizon}｜${horizon === "结构路径" ? "暂无已确认结构位置" : "暂无" + role}</div>`;
-      role = (item.roles && item.roles[0]) || role;
-      const side = /支撑/.test(role) ? "sup" : "res";
-      const focus = sameZone(item.zone, focusZone) ? " focus" : "";
-      const watched = attention && item.display_id === attention.display_id ? " attention" : "";
-      const detail = `${item.structural_core ? "结构核心 " + rng(item.structural_core, d) : ""}${item.structural_core && item.action ? "｜" : ""}${item.action || ""}`;
-      return `<div class="pathcell ${side}${focus}${watched}">
-        <div class="ph"><span class="htag">${horizon}</span><span class="role">${role}</span>${watched ? '<span class="attention-tag">今日关注</span>' : ''}</div>
-        <div class="pz">${rng(item.zone, d)}</div>
-        ${detail ? `<div class="pa">${detail}</div>` : ""}
-      </div>`;
-    }
-    function displayPathCells(spec, side, d, focusZone) {
-      const display = spec.display_levels;
-      if (!display) throw new Error("missing display_levels");
-      const levels = (display.display_paths && display.display_paths[side]) || display[side];
-      if (!Array.isArray(levels)) throw new Error("missing display_levels paths for " + side);
-      return levels.map(item => cell({ ...item, roles: [item.role] }, item.horizon, item.role, d, focusZone, display.path_attention)).join("");
-    }
-    function displayNotes(spec, d) {
-      const levels = spec.display_levels;
-      if (!levels) throw new Error("missing display_levels");
-      const observation = levels.primary_observation;
-      const context = levels.intraday_context;
-      const bits = [];
-      if (observation) bits.push(`<b>主观察区</b>｜${observation.label} ${rng(observation.zone, d)}`);
-      if (context) bits.push(`<b>盘中背景</b>｜${context.type === "narrow_range" ? "15分钟夹板" : "15分钟单侧边界"} ${rng(context.zone, d)}`);
-      return bits.length ? `<div class="struct-state">${bits.join("<br>")}</div>` : "";
-    }
-
-    function structureStateLine(spec, d) {
-      const events = spec.structural_break_events || [];
-      const event = events.find(x => x.active);
-      if (!event) return "";
-      const isSupport = event.direction === "down";
-      const dailyPath = spec.daily_price_path || {};
-      const reference = isSupport ? dailyPath.support_reference : dailyPath.resistance_reference;
-      const path = isSupport ? dailyPath.support_structure : dailyPath.resistance_structure;
-      const action = isSupport ? "确认跌破" : "确认突破";
-      const former = reference && reference.zone ? `原结构${isSupport ? "支撑" : "压力"} ${rng(reference.zone, d)} ${action}` : `原结构${isSupport ? "支撑" : "压力"}${action}`;
-      const next = path && path.zone ? `当前${isSupport ? "下行" : "上行"}路径：${rng(path.zone, d)}` : `${isSupport ? "下方" : "上方"}暂无已确认结构位置`;
-      return `<div class="struct-state">状态切换｜${former}；${next}</div>`;
-    }
-    function tones(spec) {
-      return spec.layer_tones || {};
-    }
-    function boundLine(b, hidePrice) {
-      if (!b || !b.trigger) return "";
-      const price = hidePrice ? "" : (b.price || "");
-      return `<div class="fbound" title="${(b.tooltip || "").replace(/"/g, "&quot;")}"><span class="ftrig">${b.trigger}</span>${price ? `<span class="fpx">${price}</span>` : ""}</div>`;
-    }
-    function transitionLine(summary) {
-      return summary ? `<div class="pwindow transition-summary">${summary}</div>` : "";
-    }
-    function indicatorEventNotices(spec) {
-      const notices = spec.indicator_event_notices || [];
-      return notices.length ? `<div class="indicator-event-notice">${notices.join("　")}</div>` : "";
-    }
-    function changedState(summary) {
-      return summary ? "state-changed" : "";
-    }
-    function changeDateAttr(state) {
-      const date = state && state.changed_at;
-      if (!date) return "";
-      const [month, day] = date.slice(5).split("-");
-      return ` data-change-date="${Number(month)}/${Number(day)} "`;
-    }
     function attrEscape(text) {
       return String(text || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
     }
-    function eventTheme(event) {
-      const type = String((event || {}).type || "");
-      if (/跌破失败/.test(type)) return "结构修复";
-      if (/突破失败/.test(type)) return "突破失败";
-      const upward = (event || {}).upward !== false && (event || {}).side !== "support";
-      if (/突破|回踩|趋势延续/.test(type)) return upward ? "向上突破" : "向下突破";
-      if (/支撑|回调/.test(type)) return "支撑";
-      if (/压力|反弹/.test(type)) return "压力";
-      return "当前事件";
+    function mdStamp(date) {
+      if (!date) return "";
+      const parts = String(date).slice(5).split("-");
+      if (parts.length < 2) return "";
+      return `${Number(parts[0])}/${Number(parts[1])}更新`;
+    }
+    function changeStamp(show, date) {
+      if (!show || !date) return "";
+      return ` <span class="change-stamp">${mdStamp(date)}</span>`;
     }
     function coreHeadline(spec) {
       const j = spec.composite_judgement || {};
@@ -526,25 +441,25 @@
     function coreBlock(spec) {
       const structure = spec.market_structure || {};
       const event = spec.current_event || {};
-      const judge = spec.composite_judgement || {};
-      const T = tones(spec);
-      const tone = judge.tone || T.event || "gold";
-      const conf = spec.status_bar && spec.status_bar.event_confidence || judge.event_confidence;
-      const changed = spec.direction_transition_summary || spec.shape_transition_summary || spec.focus_transition_summary;
-      const changeState = spec.direction_transition_state || spec.shape_transition_state || spec.focus_transition_state;
-      const shape = spec.display_summary && spec.display_summary.status_line;
-      return `<div class="core ${changedState(changed)}"${changeDateAttr(changeState)}>
+      const bar = spec.status_bar || {};
+      const confLine = bar.confirmation_status || bar.event_confidence || "";
+      const reasonTip = attrEscape(structure.reason_detail || "");
+      const records = [
+        spec.direction_transition_state && spec.direction_transition_state.summary,
+        spec.shape_transition_state && spec.shape_transition_state.summary,
+        spec.focus_transition_state && spec.focus_transition_state.summary,
+      ].filter((item, i, arr) => item && arr.indexOf(item) === i);
+      const fold = records.length
+        ? `<details class="fold core-history"><summary>状态变化记录</summary><div class="more">${records.join("<br>")}</div></details>`
+        : "";
+      return `<div class="core">
         <div class="flab">核心判断</div>
-        <div class="core-top">
-          <div>
-            <div class="core-head">${paintBias(coreHeadline(spec))}</div>
-            <div class="core-line core-structure"><span class="k">市场结构</span>${structure.label || ""}</div>
-            <div class="core-line core-event"><span class="k">当前事件</span>${event.label || ""} · ${event.state || ""}</div>
-            ${shape ? `<div class="pwindow shape-summary-status">${shape}</div>` : ""}
-            ${transitionLine(spec.direction_transition_summary || spec.shape_transition_summary || spec.focus_transition_summary)}
-          </div>
-          ${conf ? `<div class="conf-tag ${tone}">确认度：${conf}</div>` : ""}
-        </div>
+        <div class="core-head">${paintBias(coreHeadline(spec))}</div>
+        <div class="core-line core-structure"${reasonTip ? ` title="${reasonTip}"` : ""}><span class="k">市场结构</span><span class="v">${structure.label || ""}${changeStamp(structure.show_change, structure.last_changed_at)}</span></div>
+        ${structure.reason ? `<div class="core-reason"${reasonTip ? ` title="${reasonTip}"` : ""}>${structure.reason}</div>` : ""}
+        <div class="core-line core-event"><span class="k">当前事件</span><span class="v">${event.label || ""}${event.state ? " · " + event.state : ""}${changeStamp(event.show_change, event.last_changed_at)}</span></div>
+        <div class="core-line core-confirm"><span class="k">确认状态</span><span class="v">${confLine}${changeStamp(bar.confirm_show_change, bar.confirm_changed_at)}</span></div>
+        ${fold}
       </div>`;
     }
     function drow(label, value, extra) {
@@ -553,296 +468,78 @@
     }
     function eventCard(spec) {
       const card = spec.event_card || spec.focus_card || {};
-      const event = spec.current_event || {};
-      const title = event.label || card.title || card.label || "当前事件";
       const close = card.close ? `<span class="px">${card.close}</span>` : "";
       return `<div class="event-card focus-card">
         <div class="flab">当前事件</div>
-        <div class="fval">${title}</div>
         <div class="drows">
-          ${drow("关键区域", card.key_zone)}
+          ${drow("事件区间", card.event_zone || card.key_zone)}
           ${drow("当前价格", close)}
-          ${drow("突破余量", card.break_margin)}
-          ${drow("下一验证", card.pending_level, "warn")}
+          ${drow("下一判定", card.next_gate, "warn")}
         </div>
-        ${card.status ? `<div class="event-note">${card.status}</div>` : ""}
       </div>`;
     }
-    function normalizePathItems(items) {
-      const out = [];
-      (items || []).forEach(item => {
-        const text = typeof item === "string" ? item : item.text;
-        const title = typeof item === "string" ? "" : (item.title || "");
-        const raw = String(text || "").trim();
-        if (/^→/.test(raw)) {
-          out.push({ text: raw, title });
-          return;
-        }
-        const parts = raw.split(/\s*→\s*/);
-        if (parts.length > 1) {
-          const head = parts[0].trim();
-          if (head) out.push({ text: head, title });
-          parts.slice(1).forEach(part => {
-            if (part.trim()) out.push({ text: "→ " + part.trim(), title });
-          });
-        } else {
-          out.push(typeof item === "string" ? { text, title: "" } : item);
-        }
-      });
-      return out;
-    }
     function pathSteps(items) {
-      const normalized = normalizePathItems(items);
-      if (!normalized.length) return `<div class="path-step">等待可验证条件</div>`;
-      const steps = [];
-      normalized.forEach(item => {
-        const text = typeof item === "string" ? item : item.text;
-        const title = typeof item === "string" ? "" : (item.title || "");
-        if (/^→/.test(text) && steps.length) {
-          steps[steps.length - 1].outcomes.push({ text, title });
-        } else {
-          steps.push({ text, title, outcomes: [] });
+      if (!items || !items.length) return `<div class="path-step">等待可验证条件</div>`;
+      return items.map((item, i) => {
+        if (typeof item === "string") {
+          return `<div class="path-step"><span class="step-num">${i + 1}</span><div class="step-body">${item}</div></div>`;
         }
-      });
-      return steps.map((step, i) => {
-        const attr = step.title ? ` title="${attrEscape(step.title)}"` : "";
-        const outs = step.outcomes.map(o => {
-          const oattr = o.title ? ` title="${attrEscape(o.title)}"` : "";
-          return `<div class="step-out"${oattr}>${o.text}</div>`;
-        }).join("");
-        return `<div class="path-step"${attr}><span class="step-num">${i + 1}</span><div class="step-body"><div>${step.text}</div>${outs}</div></div>`;
+        const price = item.price
+          ? (item.role ? `<b>${item.price}｜${item.role}</b>` : `<b>${item.price}</b>`)
+          : "";
+        const qualifier = item.qualifier ? " " + item.qualifier : "";
+        const line = `${item.action || ""} ${price}${qualifier}${item.outcome ? " → " + item.outcome : ""}`.replace(/\s+/g, " ").trim();
+        const attr = item.title ? ` title="${attrEscape(item.title)}"` : "";
+        return `<div class="path-step"${attr}><span class="step-num">${i + 1}</span><div class="step-body">${line}</div></div>`;
       }).join("");
     }
-    function unusedNext(zone, used) {
-      if (!zone) return null;
-      if (used && used.some(item => sameZone(item, zone))) return null;
-      return zone;
-    }
-    function structuredPaths(spec, d) {
-      const event = spec.current_event || {};
-      const card = spec.event_card || {};
-      const loc = spec.price_location || {};
-      const type = event.type || "";
-      const zone = card.zone || event.zone;
-      const used = [zone].filter(Boolean);
-      const nextR = unusedNext(loc.next_resistance || loc.near_resistance, used);
-      const nextS = unusedNext(loc.next_support || loc.near_support, used);
-      const pending = card.pending_level;
-      const low = zone ? fmt(zone[0], d) : "";
-      const high = zone ? fmt(zone[1], d) : "";
-      const acceptTip = "近3日≥2日有效收于区域外";
-      if (type === "突破尝试" && event.upward !== false && event.side !== "support") {
-        return {
-          up: [
-            { text: `站稳 <b>${pending || high}</b>`, title: acceptTip },
-            { text: "→ 突破接受", title: acceptTip },
-            card.key_zone ? { text: `回踩 <b>${card.key_zone}</b> 不破` } : null,
-            { text: "→ 回踩确认" },
-            nextR ? { text: `看 <b>${rng(nextR, d)}</b>` } : null,
-          ].filter(Boolean),
-          down: [
-            { text: `跌回 <b>${low}</b> 下方` },
-            { text: "→ 突破失败" },
-            nextS ? { text: `看 <b>${rng(nextS, d)}</b>` } : null,
-            nextS ? { text: `跌破 <b>${fmt(nextS[0], d)}</b>` } : null,
-            nextS ? { text: "→ 结构继续弱化" } : null,
-          ].filter(Boolean),
-        };
-      }
-      if (type === "突破尝试") {
-        return {
-          up: [
-            { text: `涨回 <b>${high}</b> 上方` },
-            { text: "→ 跌破失败" },
-            nextR ? { text: `看 <b>${rng(nextR, d)}</b>` } : null,
-          ].filter(Boolean),
-          down: [
-            { text: `守住 <b>${pending || low}</b> 下方`, title: acceptTip },
-            { text: "→ 跌破接受", title: acceptTip },
-            nextS ? { text: `看 <b>${rng(nextS, d)}</b>` } : null,
-          ].filter(Boolean),
-        };
-      }
-      return null;
-    }
-    function compressPathLine(line) {
-      return String(line || "")
-        .replace(/若近\d+日[≥>=]\d+日有效收于/g, "站稳 ")
-        .replace(/若之后回踩/g, "回踩")
-        .replace(/若重新有效跌回/g, "跌回")
-        .replace(/若重新有效涨回/g, "涨回")
-        .replace(/若重新有效站回/g, "站回")
-        .replace(/若该区域出现15min企稳确认 → /g, "")
-        .replace(/若出现15min支撑确认并守住/g, "守住")
-        .replace(/若继续有效突破 → /g, "")
-        .replace(/若有效跌破/g, "跌破")
-        .replace(/若有效突破/g, "突破")
-        .replace(/若近端压力/g, "近端压力")
-        .replace(/下一观察/g, "看")
-        .replace(/本次/g, "")
-        .replace(/^若/, "")
-        .replace(/有效/g, "")
-        .replace(/\s+/g, " ")
-        .trim();
-    }
-    function eventPaths(spec, d) {
-      const structured = structuredPaths(spec, d);
+    function eventPaths(spec) {
       const raw = spec.event_paths || {};
-      const up = structured ? structured.up : (raw.up || []).map(compressPathLine).filter(Boolean);
-      const down = structured ? structured.down : (raw.down || []).map(compressPathLine).filter(Boolean);
       return `<div class="pathgrid">
         <section class="pathcol up">
           <b class="path-k">上行路径</b>
-          ${pathSteps(up)}
+          ${pathSteps(raw.up)}
         </section>
         <section class="pathcol down">
           <b class="path-k">下行路径</b>
-          ${pathSteps(down)}
+          ${pathSteps(raw.down)}
         </section>
       </div>`;
     }
-    function rsiDigest(text) {
-      const m = String(text || "").match(/(\d+(?:\.\d+)?)/);
-      if (!m) return null;
-      const n = Math.round(Number(m[1]));
-      const arrow = /上行/.test(text) ? "↑" : /下行/.test(text) ? "↓" : "";
-      return `RSI ${n}${arrow}`;
-    }
-    function macdDigest(text) {
-      const t = String(text || "");
-      const bits = [];
-      if (/零轴上方/.test(t)) bits.push("零轴上方");
-      else if (/零轴下方/.test(t)) bits.push("零轴下方");
-      if (/DIF上行/.test(t)) bits.push("DIF上行");
-      else if (/DIF下行/.test(t)) bits.push("DIF下行");
-      else if (/金叉/.test(t)) bits.push("金叉");
-      else if (/死叉/.test(t)) bits.push("死叉");
-      return bits.length ? `MACD ${bits.join(" / ")}` : null;
-    }
-    function kdjDigest(text) {
-      const t = String(text || "");
-      const j = t.match(/J\s*(\d+)/);
-      if (j && Number(j[1]) >= 80) return "KDJ上行，J值进入高位";
-      if (/上行/.test(t)) return "KDJ上行";
-      if (/下行/.test(t)) return "KDJ下行";
-      return null;
-    }
-    function bollPrice(ind, vol) {
-      const blob = [ind && ind.boll, vol && vol.detail, vol && vol.boll_position].filter(Boolean).join(" ");
-      const m = blob.match(/上轨\s*(\d+\.\d+)/);
-      if (m) return m[1];
-      if (vol && vol.upper != null) return String(vol.upper);
-      return null;
-    }
-    function intraTitle(intra, event) {
-      const theme = eventTheme(event);
-      if (intra.status === "资料不足") return "资料不足";
-      if (intra.confirmed) return `已确认${theme}`;
-      return `尚未确认${theme}`;
-    }
-    function flowTitle(flow, event) {
-      const theme = eventTheme(event);
-      const grade = flow.grade || "";
-      if (grade === "强确认") return `强化${theme}`;
-      if (grade === "偏强确认") return `偏强确认${theme}`;
-      if (grade === "不强化") return `暂未强化${theme}`;
-      if (grade === "偏弱确认") return `削弱${theme}`;
-      if (grade === "强反向确认") return `反向于${theme}`;
-      return grade || "量价仓";
-    }
-    function indTitle(ind, event) {
-      const theme = eventTheme(event);
-      if ((ind.effect === "增强") || /偏多辅助|偏空辅助/.test(ind.bias || "")) return `轻度支持${theme}`;
-      if (ind.effect === "削弱") return `不支持${theme}`;
-      return `不修正${theme}`;
-    }
-    function volTitle(vol) {
-      const state = String(vol.state || "");
-      if (/边际扩张|开始回升|收敛 → 扩张|收敛→扩张/.test(state)) return "有利于后续波动扩张";
-      if (/低波动收敛/.test(state)) return "波动仍收敛";
-      if (/高波动扩张/.test(state)) return "波动已扩张";
-      return state || "波动环境";
+    function evidenceCard(view, extra) {
+      if (!view) throw new Error("missing evidence card view");
+      const rows = (view.rows || []).map(row => drow(row.k, row.v, row.extra)).join("");
+      const conditions = (view.conditions || []).map(line => `<div class="ed">${line}</div>`).join("");
+      return `<div class="evidence-card">
+        <div class="evidence-head">
+          <div class="flab">${view.title}</div>
+          <span class="tag ${toneTag(view.tone)}">${view.headline || ""}</span>
+        </div>
+        <div class="drows">${rows}</div>
+        ${conditions}
+        ${extra || ""}
+      </div>`;
     }
     function evidenceGrid(spec) {
       const c = spec.confirmation || {};
-      const event = spec.current_event || {};
-      const intra = c.intraday_15m || {};
-      const flow = c.volume_oi || spec.participation_status || {};
-      const ind = c.indicators || {};
-      const vol = c.volatility || spec.volatility || {};
-      const extremeLabel = event.side === "support" ? "最近低点" : "最近高点";
-      const reboundLabel = event.side === "support" ? "前一反弹高点" : "前一回落低点";
-      const oiPct = flow.oi_change != null ? `${flow.oi_change >= 0 ? "+" : ""}${(flow.oi_change * 100).toFixed(1)}%` : "";
-      const oiRank = flow.oi_percentile != null ? `${Math.round(flow.oi_percentile * 100)}%分位` : "";
-      const volRatio = flow.volume_ratio != null ? `${Number(flow.volume_ratio).toFixed(2)} × 20日均量` : "";
-      const volRank = flow.volume_percentile != null ? `${Math.round(flow.volume_percentile * 100)}%分位` : "";
-      const strongFlow = /大幅增仓|强确认/.test(`${flow.combo || ""}${flow.grade || ""}`);
-      const digest = [macdDigest(ind.macd), rsiDigest(ind.rsi), kdjDigest(ind.kdj)].filter(Boolean).join(" · ");
-      const upper = bollPrice(ind, vol);
-      const bbw = vol.bbw_percentile != null ? `BBW ${Math.round(vol.bbw_percentile * 100)}%分位${/扩张|回升|rising/.test(vol.state || "") || vol.bbw_change_5d > 0 ? "↑" : ""}` : "";
       const divergence = spec.macd_divergence || {};
-      const divergenceText = divergence.active_for_verdict
-        ? [divergence.event_label, divergence.status_label].filter(Boolean).join(" · ")
-        : "";
       const notices = spec.indicator_event_notices || [];
+      const extraInd = divergence.active_for_verdict
+        ? `<div class="ed">${[divergence.event_label, divergence.status_label].filter(Boolean).join(" · ")}</div>`
+        : (notices.length ? `<div class="indicator-event-notice">${notices.join("　")}</div>` : "");
       return `<div class="evidence-grid">
-        <div class="evidence-card primary">
-          <div class="evidence-head">
-            <div class="flab">15min结构</div>
-            <span class="tag ${toneTag(intra.tone)}">${intraTitle(intra, event)}</span>
-          </div>
-          <div class="drows">
-            ${drow(extremeLabel, intra.recent_extreme)}
-            ${drow(reboundLabel, intra.rebound)}
-            ${drow("结构判断", intra.next_condition || intra.detail)}
-          </div>
-        </div>
-        <div class="evidence-card primary">
-          <div class="evidence-head">
-            <div class="flab">量价仓</div>
-            <span class="tag ${toneTag(flow.tone)}">${flowTitle(flow, event)}</span>
-          </div>
-          <div class="drows">
-            ${drow("价格表现", flow.combo)}
-            ${drow("持仓变化", [oiPct, oiRank].filter(Boolean).join(" ｜ "))}
-            ${drow("成交量", [volRatio, volRank].filter(Boolean).join(" ｜ "))}
-            ${drow("结论", flow.note || flow.summary, strongFlow ? "strong" : "")}
-          </div>
-        </div>
-      </div>
-      <div class="aux-evidence">
-        <div class="aux-bar aux-row">
-          <span class="aux-k">技术指标<span class="aux-sep">｜</span>${indTitle(ind, event)}</span>
-          <span class="aux-digest">${digest || (ind.bias || "")}${divergenceText ? " · " + divergenceText : ""}</span>
-        </div>
-        <div class="aux-bar aux-row">
-          <span class="aux-k">波动环境<span class="aux-sep">｜</span>${volTitle(vol)}</span>
-          <span class="aux-digest">${[upper ? "BOLL上轨 " + upper : "", bbw].filter(Boolean).join(" · ")}</span>
-        </div>
-        ${notices.length ? `<div class="indicator-event-notice">${notices.join("　")}</div>` : ""}
-        <details class="fold"><summary>指标详情</summary>
-          <div class="more">${[ind.macd && "MACD：" + ind.macd, ind.rsi && "RSI：" + ind.rsi, ind.kdj && "KDJ：" + ind.kdj, ind.boll && "BOLL：" + ind.boll].filter(Boolean).join("<br>")}</div>
-        </details>
+        ${evidenceCard((c.intraday_15m || {}).view)}
+        ${evidenceCard((c.volume_oi || {}).view)}
+        ${evidenceCard((c.indicators || {}).view, extraInd)}
+        ${evidenceCard((c.volatility || {}).view)}
       </div>`;
     }
-    function priceMap(spec, d) {
-      const loc = spec.price_location || {};
-      const shown = [
-        (spec.event_card || {}).key_zone,
-        loc.next_resistance && rng(loc.next_resistance, d),
-        loc.near_resistance && rng(loc.near_resistance, d),
-        loc.next_support && rng(loc.next_support, d),
-        loc.near_support && rng(loc.near_support, d),
-      ].filter(Boolean);
-      const lines = (loc.lines || []).filter(line => {
-        if (/当前价格/.test(line)) return false;
-        return !shown.some(zone => line.indexOf(zone) >= 0);
-      });
+    function moreLevels(spec) {
+      const lines = spec.more_levels || [];
       if (!lines.length) return "";
-      return `<details class="fold"><summary>完整价格地图</summary>${lines.join("<br>")}</details>`;
+      return `<details class="fold"><summary>更多价格位</summary>${lines.join("<br>")}</details>`;
     }
     function card(key, spec) {
-      const d = key === "TL" ? 2 : 3;
       const focus = spec.display_focus;
       if (!focus) throw new Error("missing display_focus");
       if (!spec.display_summary) throw new Error("missing display_summary");
@@ -854,14 +551,15 @@
           <div><div class="code">${spec.code}</div><h2 class="name">${spec.name}</h2></div>
         </div>
         ${coreBlock(spec)}
+        <div class="layer-k">事件与路径</div>
         <div class="decision-grid">
           ${eventCard(spec)}
-          ${eventPaths(spec, d)}
+          ${eventPaths(spec)}
         </div>
         <div class="block">
           <div class="block-k">确认证据</div>
           ${evidenceGrid(spec)}
-          ${priceMap(spec, d)}
+          ${moreLevels(spec)}
         </div>
         <div class="block">
         <div class="block-k">图表</div>
