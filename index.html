@@ -123,6 +123,7 @@
       margin: -2px 0 8px 72px; font-size: 13px; line-height: 1.45;
       color: var(--text-secondary);
     }
+    .state-change { margin: 8px 0 0 72px; color: var(--warning); font-size: 12px; line-height: 1.45; }
     .change-stamp { color: var(--text-muted); font-size: 12px; font-weight: 400; margin-left: 8px; }
     .core-history { margin-top: 4px; }
     .core-history > summary { border-top: 0; padding-top: 8px; }
@@ -205,6 +206,8 @@
       margin-bottom: 8px;
     }
     .evidence-card .ed { font-size: 13px; line-height: 1.55; color: var(--text-secondary); margin-top: 6px; }
+    .evidence-meaning { margin: 10px 0 0; padding-top: 10px; border-top: 1px solid var(--border); font-size: 13px; line-height: 1.55; color: var(--text-secondary); }
+    .evidence-meaning b { color: var(--text-primary); }
     .aux-evidence { display: grid; gap: 8px; margin: 0 0 12px; }
     .aux-bar {
       display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline;
@@ -228,6 +231,10 @@
     details.fold summary::after { content: "▸"; color: var(--text-muted); font-size: 12px; }
     details.fold[open] summary::after { content: "▾"; }
     details.fold .more { padding: 4px 0 8px; color: var(--text-secondary); line-height: 1.6; }
+    .audit-table { width: 100%; border-collapse: collapse; margin: 4px 0 8px; font-variant-numeric: tabular-nums; }
+    .audit-table th, .audit-table td { padding: 5px 8px; text-align: left; border-bottom: 1px solid var(--border); font-weight: 400; }
+    .audit-table th { color: var(--text-muted); font-size: 12px; }
+    .audit-table .yes { color: var(--up); font-weight: 600; }
     .flab { font-size: 16px; font-weight: 600; color: var(--text-primary); letter-spacing: 0; margin: 0; }
     .core > .flab { font-size: 16px; margin-bottom: 8px; }
     .fval { font-size: 18px; line-height: 1.35; font-weight: 600; color: var(--text-primary); }
@@ -446,9 +453,19 @@
       const structure = spec.market_structure || {};
       const event = spec.current_event || {};
       const bar = spec.status_bar || {};
+      const audit = spec.event_audit || {};
       const confLine = bar.event_confidence || bar.confirmation_status || "";
       const stageLine = event.stage_text || bar.event_stage || event.state || "";
       const reasonTip = attrEscape(structure.reason_detail || "");
+      const c = spec.confirmation || {};
+      const participation = ((c.volume_oi || {}).grade || "").replace("确认", "支持");
+      const intraday = ((c.intraday_15m || {}).status || "尚未确认").replace("当前突破", "");
+      const momentum = (c.indicators || {}).bias || "中性";
+      const confirmReason = [
+        participation && `量价仓${participation}`,
+        intraday && `15min${intraday}`,
+        `动量${momentum}`,
+      ].filter(Boolean).join("；");
       const records = [
         spec.direction_transition_state && spec.direction_transition_state.summary,
         spec.shape_transition_state && spec.shape_transition_state.summary,
@@ -457,14 +474,19 @@
       const fold = records.length
         ? `<details class="fold core-history"><summary>状态变化记录</summary><div class="more">${records.join("<br>")}</div></details>`
         : "";
+      const change = event.show_change && event.last_changed_at && spec.focus_transition_state
+        ? `<div class="state-change">状态变化：${spec.focus_transition_state.summary || stageLine} · ${mdStamp(event.last_changed_at)}</div>`
+        : "";
       return `<div class="core">
         <div class="flab">核心判断</div>
         <div class="core-head">${paintBias(coreHeadline(spec))}</div>
         <div class="core-line core-structure"${reasonTip ? ` title="${reasonTip}"` : ""}><span class="k">市场结构</span><span class="v">${structure.label || ""}${changeStamp(structure.show_change, structure.last_changed_at)}</span></div>
-        ${structure.reason ? `<div class="core-reason"${reasonTip ? ` title="${reasonTip}"` : ""}>${structure.reason}</div>` : ""}
-        <div class="core-line core-event"><span class="k">当前事件</span><span class="v">${event.label || ""}${changeStamp(event.show_change, event.last_changed_at)}</span></div>
-        <div class="core-line core-stage"><span class="k">事件阶段</span><span class="v">${stageLine}</span></div>
+        ${structure.reason ? `<div class="core-reason"${reasonTip ? ` title="${reasonTip}"` : ""}>${structure.reason}</div>${structure.reason_detail ? `<details class="fold"><summary>结构判定详情</summary><div class="more">${structure.reason_detail}</div></details>` : ""}` : ""}
+        <div class="core-line core-event"><span class="k">当前事件</span><span class="v">${event.label || ""} · ${stageLine}</span></div>
+        <div class="core-reason">${audit.reason || (spec.event_card || {}).status || "等待事件给出下一步确认"}</div>
         <div class="core-line core-confirm"><span class="k">事件确认</span><span class="v">${confLine}${changeStamp(bar.confirm_show_change, bar.confirm_changed_at)}</span></div>
+        <div class="core-reason">${confirmReason}</div>
+        ${change}
         ${fold}
       </div>`;
     }
@@ -474,15 +496,33 @@
     }
     function eventCard(spec) {
       const card = spec.event_card || spec.focus_card || {};
+      const audit = spec.event_audit || {};
       const close = card.close ? `<span class="px">${card.close}</span>` : "";
+      const details = eventAuditDetails(audit);
       return `<div class="event-card focus-card">
         <div class="flab">当前事件</div>
         <div class="drows">
           ${drow("事件区间", card.event_zone || card.key_zone)}
           ${drow("当前价格", close)}
-          ${drow("下一判定", card.next_gate, "warn")}
+          ${drow("当前进度", audit.progress || card.status, "strong")}
+          ${drow("判定依据", audit.reason || card.status)}
+          ${drow("升级条件", audit.upgrade || card.next_gate, "warn")}
+          ${drow("失败条件", audit.failure)}
         </div>
+        ${details}
       </div>`;
+    }
+    function eventAuditDetails(audit) {
+      if (!audit || !audit.threshold) return "";
+      const direction = audit.direction === "down" ? "下破" : "上破";
+      const rows = (audit.recent || []).map(item => `<tr><td>${item.date || "—"}</td><td>${item.close || "—"}</td><td class="${item.valid ? "yes" : ""}">${item.valid ? `✓ 有效${direction}` : "未越界"}</td></tr>`).join("");
+      return `<details class="fold"><summary>判定详情</summary><div class="more">
+        事件区域：${(audit.zone || []).join("–")}　ATR20：${audit.atr}　有效越界缓冲：${audit.buffer_atr}ATR ≈ ${audit.buffer}<br>
+        有效${direction}线：约${audit.threshold}
+        <table class="audit-table"><thead><tr><th>交易日</th><th>收盘</th><th>判定</th></tr></thead><tbody>${rows}</tbody></table>
+        当前计数：${audit.progress}　接受规则：${audit.accept_rule}<br>
+        因此：${audit.reason}
+      </div></details>`;
     }
     function pathSteps(items) {
       if (!items || !items.length) return `<div class="path-step">等待可验证条件</div>`;
@@ -512,20 +552,39 @@
         </section>
       </div>`;
     }
-    function evidenceCard(view, extra) {
+    function evidenceCard(source, extra) {
+      const view = source && source.view;
       if (!view) throw new Error("missing evidence card view");
-      const rows = (view.rows || []).map(row => drow(row.k, row.v, row.extra)).join("");
-      const conditions = (view.conditions || []).map(line => `<div class="ed">${line}</div>`).join("");
+      const rows = (view.rows || [])
+        .filter(row => !["结论", "解释标准"].includes(row.k))
+        .slice(0, 3)
+        .map(row => drow(row.k, row.v, row.extra)).join("");
       const role = view.role ? `<span class="erole">｜${view.role}</span>` : "";
+      const meaning = source.note || source.context || source.detail || (view.conditions || [])[0] || "该模块仅作为当前事件的辅助证据。";
       return `<div class="evidence-card">
         <div class="evidence-head">
           <div class="flab">${view.title}${role}</div>
           <span class="tag ${toneTag(view.tone)}">${view.headline || ""}</span>
         </div>
         <div class="drows">${rows}</div>
-        ${conditions}
+        <div class="evidence-meaning"><b>含义：</b>${meaning}</div>
         ${extra || ""}
       </div>`;
+    }
+    function confidenceAuditDetails(spec) {
+      const event = spec.current_event || {};
+      const c = spec.confirmation || {};
+      const intraday = c.intraday_15m || {};
+      const volume = c.volume_oi || {};
+      const indicators = c.indicators || {};
+      const volatility = c.volatility || {};
+      return `<details class="fold"><summary>确认详情</summary><div class="more">
+        基础事件：${event.stage_text || event.state || "—"}<br>
+        结构确认：${intraday.status || "尚未完成"}　参与确认：${volume.grade || "—"}<br>
+        动量辅助：${indicators.effect || "中性"}（${indicators.bias || "—"}）<br>
+        波动环境：${volatility.state || "—"}（不单独计入确认度）<br>
+        综合：${(spec.status_bar || {}).confirmation_status || event.confidence || "—"}
+      </div></details>`;
     }
     function evidenceGrid(spec) {
       const c = spec.confirmation || {};
@@ -535,11 +594,11 @@
         ? `<div class="ed">${[divergence.event_label, divergence.status_label].filter(Boolean).join(" · ")}</div>`
         : (notices.length ? `<div class="indicator-event-notice">${notices.join("　")}</div>` : "");
       return `<div class="evidence-grid">
-        ${evidenceCard((c.intraday_15m || {}).view)}
-        ${evidenceCard((c.volume_oi || {}).view)}
-        ${evidenceCard((c.indicators || {}).view, extraInd)}
-        ${evidenceCard((c.volatility || {}).view)}
-      </div>`;
+        ${evidenceCard(c.intraday_15m || {})}
+        ${evidenceCard(c.volume_oi || {})}
+        ${evidenceCard(c.indicators || {}, extraInd)}
+        ${evidenceCard(c.volatility || {})}
+      </div>${confidenceAuditDetails(spec)}`;
     }
     function moreLevels(spec) {
       const lines = spec.more_levels || [];
